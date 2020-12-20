@@ -5,12 +5,25 @@ import { processSvg } from "./utils";
 //@ts-ignore
 import { VegaLite } from "react-vega";
 //@ts-ignore
-import embed from 'vega-embed';
+import embed from "vega-embed";
 
 declare function require(path: string): any;
 
 const App = () => {
-    const [svgString,setSvgString] = React.useState('');
+  const [svgString, setSvgString] = React.useState("");
+  const [spec, setSpec] = React.useState({});
+  const [message, setMessage] = React.useState("");
+  console.log(svgString);
+  function onFetch(){
+    parent.postMessage(
+      {
+        pluginMessage: {
+          type: "fetch",
+        },
+      },
+      "*"
+    ); //
+  }
   function onCreate() {
     parent.postMessage(
       {
@@ -26,67 +39,58 @@ const App = () => {
     );
   }
 
+  function onGenerate() {
+    //@ts-ignore
+    let specString = document.getElementById("vegaSpec").value; // = "Fifth Avenue, New York City";
+    try {
+      const tempSpec = JSON.parse(specString);
+      setMessage("");
+
+      setSpec(tempSpec);
+    } catch (e) {
+      setMessage("Not a valid spec");
+    }
+  }
+
   function onCancel() {
     parent.postMessage({ pluginMessage: { type: "cancel" } }, "*");
   }
-  const barData = {
-    table: ,
-  };
-  const spec = {
-    render: "svg",
-    width: 400,
-    height: 200,
-    mark: "bar",
-    encoding: {
-      x: { field: "a", type: "ordinal" },
-      y: { field: "b", type: "quantitative" },
-    },
-    data: { values: [
-        { a: "A", b: 28 },
-        { a: "B", b: 55 },
-        { a: "C", b: 43 },
-        { a: "D", b: 91 },
-        { a: "E", b: 81 },
-        { a: "F", b: 53 },
-        { a: "G", b: 19 },
-        { a: "H", b: 87 },
-        { a: "I", b: 52 },
-      ] }, // note: vega-lite data attribute is a plain object instead of an array
-  };
-
-  
-
-  //
 
   React.useEffect(() => {
-    const result =  embed('#vis', spec);
-    result.then((embedResult)=>{
-        console.log(embedResult.view);
-        embedResult.view
+    const result = embed("#vis", spec);
+    result.then((embedResult) => {
+      console.log(embedResult.view);
+      embedResult.view
         .toSVG()
         .then(function (svg) {
           // process svg string
           console.log("YOUR SVG STRING", svg);
+
           setSvgString(svg);
         })
         .catch(function (err) {
           console.error(err);
         });
-
-    })
-
-   
+    });
   });
+
   return (
-    <div style={{width:500,height:750}}>
+    <div style={{ width: 500, height: 750 }}>
       <img src={require("./logo.svg")} />
+      {message}
+      <button id='create' onClick={onGenerate}>
+        Generate Viz
+      </button>
       <button id='create' onClick={onCreate}>
         Create
       </button>
+      <button id='create' onClick={onFetch}>
+        Fetch
+      </button>
       <button onClick={onCancel}>Cancel</button>
       <h2>Rectangle Creator in dev</h2>
-      <div id="vis"></div>
-      
+      <textarea id='vegaSpec'></textarea>
+      <div id='vis'></div>
     </div>
   );
 };

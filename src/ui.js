@@ -3,9 +3,19 @@ import * as ReactDOM from "react-dom";
 import "./ui.css";
 import { processSvg } from "./utils";
 //@ts-ignore
-import embed from 'vega-embed';
+import embed from "vega-embed";
 const App = () => {
-    const [svgString, setSvgString] = React.useState('');
+    const [svgString, setSvgString] = React.useState("");
+    const [spec, setSpec] = React.useState({});
+    const [message, setMessage] = React.useState("");
+    console.log(svgString);
+    function onFetch() {
+        parent.postMessage({
+            pluginMessage: {
+                type: "fetch",
+            },
+        }, "*"); //
+    }
     function onCreate() {
         parent.postMessage({
             pluginMessage: {
@@ -15,36 +25,23 @@ const App = () => {
         }, "*"); //
         console.log(processSvg(`<svg width=100 height=100><rect width=10 height=15 x=20 y=50></rect></svg>`));
     }
+    function onGenerate() {
+        //@ts-ignore
+        let specString = document.getElementById("vegaSpec").value; // = "Fifth Avenue, New York City";
+        try {
+            const tempSpec = JSON.parse(specString);
+            setMessage("");
+            setSpec(tempSpec);
+        }
+        catch (e) {
+            setMessage("Not a valid spec");
+        }
+    }
     function onCancel() {
         parent.postMessage({ pluginMessage: { type: "cancel" } }, "*");
     }
-    const barData = {
-        table: ,
-    };
-    const spec = {
-        render: "svg",
-        width: 400,
-        height: 200,
-        mark: "bar",
-        encoding: {
-            x: { field: "a", type: "ordinal" },
-            y: { field: "b", type: "quantitative" },
-        },
-        data: { values: [
-                { a: "A", b: 28 },
-                { a: "B", b: 55 },
-                { a: "C", b: 43 },
-                { a: "D", b: 91 },
-                { a: "E", b: 81 },
-                { a: "F", b: 53 },
-                { a: "G", b: 19 },
-                { a: "H", b: 87 },
-                { a: "I", b: 52 },
-            ] },
-    };
-    //
     React.useEffect(() => {
-        const result = embed('#vis', spec);
+        const result = embed("#vis", spec);
         result.then((embedResult) => {
             console.log(embedResult.view);
             embedResult.view
@@ -61,9 +58,13 @@ const App = () => {
     });
     return (React.createElement("div", { style: { width: 500, height: 750 } },
         React.createElement("img", { src: require("./logo.svg") }),
+        message,
+        React.createElement("button", { id: 'create', onClick: onGenerate }, "Generate Viz"),
         React.createElement("button", { id: 'create', onClick: onCreate }, "Create"),
+        React.createElement("button", { id: 'create', onClick: onFetch }, "Fetch"),
         React.createElement("button", { onClick: onCancel }, "Cancel"),
         React.createElement("h2", null, "Rectangle Creator in dev"),
-        React.createElement("div", { id: "vis" })));
+        React.createElement("textarea", { id: 'vegaSpec' }),
+        React.createElement("div", { id: 'vis' })));
 };
 ReactDOM.render(React.createElement(App, null), document.getElementById("react-page"));

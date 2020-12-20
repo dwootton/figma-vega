@@ -21,7 +21,20 @@ figma.ui.onmessage = (msg) => {
         figma.currentPage.selection = nodes;
         figma.viewport.scrollAndZoomIntoView(nodes);
     }
+    if (msg.type === "fetch") {
+        for (const node of figma.currentPage.selection) {
+            console.log(node);
+            if ("opacity" in node) {
+                node.opacity *= 0.5;
+            }
+            console.log('rot', node.rotation);
+            console.log('width', node.width);
+            console.log('height', node.height);
+            console.log('rel', node.relativeTransform);
+        }
+    }
     // Make sure to close the plugin when you're done. Otherwise the plugin will
     // keep running, which shows the cancel button at the bottom of the screen.
     figma.closePlugin();
 };
+figma.ui.resize(500, 750);

@@ -1,0 +1,112 @@
+{
+    "$schema": "https://vega.github.io/schema/vega/v5.json",
+    "description": "A basic bar chart example, with value labels shown upon mouse hover.",
+    "width": 400,
+    "height": 200,
+    "padding": 5,
+  
+    "data": [
+      {
+        "name": "table",
+        "values": [
+          {"category": "A", "amount": 28},
+          {"category": "B", "amount": 55},
+          {"category": "C", "amount": 43},
+          {"category": "D", "amount": 91},
+          {"category": "E", "amount": 81},
+          {"category": "F", "amount": 53},
+          {"category": "G", "amount": 19},
+          {"category": "H", "amount": 87}
+        ]
+      }
+    ],
+  
+    "signals": [
+      {
+        "name": "tooltip",
+        "value": {},
+        "on": [
+          {"events": "rect:mouseover", "update": "datum"},
+          {"events": "rect:mouseout",  "update": "{}"}
+        ]
+      }
+    ],
+  
+    "scales": [
+      {
+        "name": "xscale",
+        "type": "band",
+        "domain": {"data": "table", "field": "category"},
+        "range": "width",
+        "padding": 0.05,
+        "round": true
+      },
+      {
+        "name": "yscale",
+        "domain": {"data": "table", "field": "amount"},
+        "nice": true,
+        "range": "height"
+      }
+    ],
+  
+    "axes": [
+      { "orient": "bottom", "scale": "xscale" },
+      { "orient": "left", "scale": "yscale" }
+    ],
+  
+    "marks": [
+     
+      {
+        "type": "rect",
+        "from": {"data":"table"},
+        "encode": {
+          "enter": {
+            "x": {"scale": "xscale", "field": "category"},
+            "width": {"scale": "xscale", "band": 1},
+            "y": {"scale": "yscale", "field": "amount"},
+            "y2": {"scale": "yscale", "value": 0}
+          },
+          "update": {
+            "fill": {"value": "steelblue"}
+          },
+          "hover": {
+            "fill": {"value": "red"}
+          }
+        }
+      },
+      {
+        "type": "text",
+        "encode": {
+          "enter": {
+            "align": {"value": "center"},
+            "baseline": {"value": "bottom"},
+            "fill": {"value": "#333"}
+          },
+          "update": {
+            "x": {"scale": "xscale", "signal": "tooltip.category", "band": 0.5},
+            "y": {"scale": "yscale", "signal": "tooltip.amount", "offset": -2},
+            "text": {"signal": "tooltip.amount"},
+            "fillOpacity": [
+              {"test": "datum === tooltip", "value": 0},
+              {"value": 1}
+            ]
+          }
+        }
+      },
+       {
+   "type": "symbol",
+   "interactive": false,
+   "encode": {
+     "enter": {
+       "shape": {"value": "M61.1191 37.4856C61.119 37.4856 61.1189 37.4856 61 37C60.8811 36.5144 60.8813 36.5143 60.8816 36.5142L60.8874 36.5128L60.9049 36.5086L60.9729 36.4922C61.0327 36.4779 61.1213 36.457 61.2374 36.43C61.4695 36.376 61.8113 36.2981 62.252 36.2017C63.1334 36.0089 64.4103 35.7423 65.9957 35.4461C69.166 34.8539 73.5729 34.1432 78.519 33.6693C88.3847 32.724 100.497 32.7094 109.202 36.5424C118.862 40.7965 127.429 51.1566 133.555 60.3668C136.626 64.9846 139.1 69.3383 140.806 72.5374C141.659 74.1372 142.32 75.449 142.769 76.3616C142.993 76.8179 143.164 77.1745 143.279 77.4174C143.337 77.5389 143.38 77.632 143.41 77.6949L143.443 77.7665L143.451 77.7849L143.454 77.7897L143.454 77.791C143.454 77.7913 143.454 77.7915 143 78C142.546 78.2085 142.546 78.2085 142.545 78.2083L142.535 78.1862L142.503 78.1175C142.475 78.0564 142.432 77.9653 142.376 77.8459C142.262 77.6069 142.093 77.2546 141.871 76.8026C141.427 75.8988 140.771 74.5969 139.923 73.0079C138.228 69.8293 135.771 65.5048 132.722 60.9206C126.607 51.7265 118.175 41.5866 108.798 37.4576C100.347 33.7359 88.4599 33.7213 78.6144 34.6647C73.705 35.1351 69.3285 35.8409 66.1793 36.4291C64.605 36.7232 63.3382 36.9877 62.4657 37.1786C62.0295 37.274 61.6919 37.351 61.4638 37.404C61.3497 37.4305 61.2631 37.451 61.2052 37.4649L61.14 37.4805L61.1239 37.4844L61.1191 37.4856Z"},
+       "size":{"value":1}
+     },
+     "update": {
+       "x": {"value": 0},
+       "y": {"value": 0}
+     }
+   }
+  }
+    ]
+  }
+  
