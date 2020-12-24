@@ -1,3 +1,6 @@
+//@ts-ignore
+import SVGPath from "./SVGPaths.js";
+//import {SVGpath, SVGsegs} from './SVGPaths.js';
 // This plugin will open a window to prompt the user to enter a number, and
 // it will then create that many rectangles on the screen.
 // This file holds the main code for the plugins. It has access to the *document*.
@@ -11,6 +14,8 @@ figma.showUI(__html__);
 figma.ui.onmessage = (msg) => {
     // One way of distinguishing between different types of messages sent from
     // your HTML page is to use an object with a "type" property like this.
+    //console.log(SVGpath, SVGsegs,new SVGsegs("M 0.5 -0.5 l 0 1 -1 0 0 -1 z"));
+    console.log(SVGPath);
     if (msg.type === "create") {
         const nodes = [];
         console.log(msg);
@@ -22,58 +27,204 @@ figma.ui.onmessage = (msg) => {
         figma.viewport.scrollAndZoomIntoView(nodes);
     }
     if (msg.type === "fetch") {
-        for (const sceneNode of figma.currentPage.selection) {
+        // grab annnotations layer, 
+        // grab plugin data for the width/height padding 
+        const newSelection = [figma.flatten(figma.currentPage.selection)];
+        console.log(newSelection);
+        for (const sceneNode of newSelection) {
             if (sceneNode.type !== "VECTOR") {
                 continue;
             }
-            const node = sceneNode;
-            const paths = node.vectorPaths.map((vector) => {
+            const newNode = sceneNode; // as VectorNode;
+            const rot = newNode.rotation;
+            console.log('stroked', newNode.relativeTransform, newNode.absoluteTransform);
+            const x = newNode.x;
+            const y = newNode.y;
+            const width = newNode.width;
+            const height = newNode.height;
+            console.log('new vals', x, y, width, height);
+            const paths = newNode.vectorPaths.map((vector) => {
+                console.log('vectodata', vector.data);
                 return vector.data;
             });
-            const [x, y] = calculateXYFromNode(node);
-            const width = node.width;
-            const height = node.height;
-            const { pathTranslX, pathTranslY, scale } = getTranslationAndScaling(x, y, width, height);
+            //const { pathTranslX, pathTranslY, scale } = getTranslationAndScaling(x, y, width, height);
             console.log(paths);
-            const newPaths = paths.map((path) => getTransformedPathDStr(path, pathTranslX, pathTranslY, scale));
-            console.log(newPaths);
+            const pathSegs = paths.map((pathString) => {
+                const svgPath = new SVGPath();
+                const fixedPath = pathString.replace(/[\d]+[.][\d]+([e][-][\d]+)/g, '0.0');
+                console.log("imported", fixedPath);
+                svgPath.importString(fixedPath);
+                console.log("imported", svgPath);
+                return svgPath;
+            });
+            const pathStrings = pathSegs.map((segCollection) => {
+                const [minx, miny, maxx, maxy, svgWidth, svgHeight] = segCollection.calculateBounds();
+                console.log("scaled", minx, miny, maxx, maxy, svgWidth, svgHeight);
+                const maxDimension = Math.max(svgWidth, svgHeight);
+                console.log(maxDimension);
+                //segCollection.rotate(0, 0, -rot);
+                segCollection.scale(2 / maxDimension);
+                console.log(segCollection);
+                segCollection.center(0, 0);
+                console.log(segCollection);
+                console.log(segCollection);
+                return segCollection.export();
+            });
+            const maxDimension = Math.max(width, height);
+            const pX = 15; // current Vega padding
+            const pY = 5;
+            // rotation throws it off!
+            console.log("x", (1 / 2) * maxDimension, x, pX, 0, rot);
+            console.log("y", (1 / 2) * maxDimension, y, pY, 0);
+            const tX = (1 / 2) * width + x - pX; //+ (maxDimension-height)/2; // total translate
+            const tY = (1 / 2) * height + y - pY; //+ (maxDimension-height)/2; // total translate
+            const vectorScale = maxDimension * maxDimension;
             //
-            const scaledSVGPath = `{
-        "type": "symbol",
-        "interactive": false,
-        "encode": {
-          "enter": {
-            "shape": {"value": ${"hi"}},
-            "size":{"value":14752.881480552256},
-            "fill":{"value":"black"}
-          },
-          "update": {
-            "x": {"value": 66.346},
-            "y": {"value": 70.73}
+            const vals = pathStrings.map((path) => {
+                return `{
+          "type": "symbol",
+          "interactive": false,
+          "encode": {
+            "enter": {
+              "angle":{"value":${0}},
+              "shape": {"value": "${path}"},
+              "size":{"value":${vectorScale}},
+              "fill":{"value":"black"}
+            },
+            "update": {
+              "width":{"value":${width}},
+              "height":{"value":${height}},
+              "x": {"value": ${tX}},
+              "y": {"value": ${tY}}
+            }
           }
-        }
-       }`;
+         }`;
+            });
+            console.log(JSON.stringify(vals[0]).replace(/\\n/g, "").replace(/\\/g, ""));
         }
     }
     // Make sure to close the plugin when you're done. Otherwise the plugin will
     // keep running, which shows the cancel button at the bottom of the screen.
     //figma.closePlugin();
 };
+function deg2Radian(deg) {
+    return deg * (Math.PI / 180);
+}
+function multiplyMatrices(matrixA, matrixB) {
+    let aNumRows = matrixA.length;
+    let aNumCols = matrixA[0].length;
+    let bNumRows = matrixB.length;
+    let bNumCols = matrixB[0].length;
+    let newMatrix = new Array(aNumRows);
+    for (let r = 0; r < aNumRows; ++r) {
+        newMatrix[r] = new Array(bNumCols);
+        for (let c = 0; c < bNumCols; ++c) {
+            newMatrix[r][c] = 0;
+            for (let i = 0; i < aNumCols; ++i) {
+                newMatrix[r][c] += matrixA[r][i] * matrixB[i][c];
+            }
+        }
+    }
+    return newMatrix;
+}
+function multiply(a, b) {
+    return [
+        [a[0][0] * b[0][0] + a[0][1] * b[1][0], a[0][0] * b[0][1] + a[0][1] * b[1][1], a[0][0] * b[0][2] + a[0][1] * b[1][2] + a[0][2]],
+        [a[1][0] * b[0][0] + a[1][1] * b[1][0], a[1][0] * b[0][1] + a[1][1] * b[1][1] + 0, a[1][0] * b[0][2] + a[1][1] * b[1][2] + a[1][2]]
+    ];
+}
+// Creates a "move" transform.
+function move(x, y) {
+    return [
+        [1, 0, x],
+        [0, 1, y]
+    ];
+}
+// Creates a "rotate" transform.
+function rotate(theta) {
+    return [
+        [Math.cos(theta), Math.sin(theta), 0],
+        [-Math.sin(theta), Math.cos(theta), 0]
+    ];
+}
+function calculateXYFromNode(node) {
+    let locationRelativeToParentX = node.x;
+    let locationRelativeToParentY = node.y;
+    let x = node.width / 2;
+    let y = node.width / 2;
+    let rotationDeg = -node.rotation;
+    let rotationRad = (Math.PI * rotationDeg) / 180;
+    let xTransform = x - x * Math.cos(rotationRad) + y * Math.sin(rotationRad);
+    let yTransform = y - x * Math.sin(rotationRad) + y * Math.cos(rotationRad);
+    let rotationTransform = [[Math.cos(rotationRad), -Math.sin(rotationRad), xTransform], [Math.sin(rotationRad), Math.cos(rotationRad), yTransform]];
+    console.log(JSON.stringify(node.relativeTransform));
+    node.relativeTransform = rotationTransform;
+    console.log(JSON.stringify(node.relativeTransform));
+    node.x += locationRelativeToParentX;
+    node.y += locationRelativeToParentY;
+    console.log(JSON.stringify(node.y), JSON.stringify(node.x));
+}
 /**
  * Function that calculates the correct XY position ignoring rotation
  * @param node
  */
-function calculateXYFromNode(node) {
-    const x = node.x;
-    const y = node.y;
-    const width = node.width;
-    const height = node.height;
-    console.log(x, y, width, height);
-    const rot = (node.rotation * Math.PI) / 180; // in radians
-    // note, to calculate distance from rotation, you must flip the sign  (1/2)H because in cartesian coordinates y DECREASES as you
-    const realX = x + (1 / 2) * width * Math.cos(rot) - -1 * (1 / 2) * height * Math.sin(rot) - (1 / 2) * width;
-    const realY = y + (1 / 2) * width * Math.sin(rot) - -1 * (1 / 2) * height * Math.cos(rot) - (1 / 2) * height;
-    return [realX, realY];
+function newCalculateRelative(originalNode) {
+    const node = originalNode.clone();
+    console.log(JSON.stringify(node.relativeTransform));
+    //const x = originalNode.x;
+    //const y = originalNode.y;
+    //node.x = 0;
+    //node.y = 0;
+    console.log(JSON.stringify(node.absoluteTransform));
+    //node.rotation = 0;
+    console.log(JSON.stringify(node.relativeTransform));
+    let transform = JSON.parse(JSON.stringify(node.relativeTransform));
+    // move to 0 
+    let x = transform[0][2];
+    let y = transform[1][2];
+    transform[0][2] = 0;
+    transform[1][2] = 0;
+    console.log('from 360', JSON.stringify(transform));
+    transform = multiply(rotate(2 * Math.PI - (node.rotation - Math.PI) / 180), transform);
+    console.log('from after rot', JSON.stringify(transform));
+    transform = multiply(move(x, y), transform);
+    console.log('from after move', JSON.stringify(transform));
+    const difX = node.x;
+    const difY = node.y;
+    console.log('calced', difX, difY, x + difX, y + difY);
+    console.log(JSON.stringify(node.relativeTransform));
+    console.log(multiply(rotate(-node.rotation), transform));
+    console.log('from 360', multiply(rotate(-(node.rotation - Math.PI) / 180), node.relativeTransform));
+    // rotate back
+    const angleInRadians = deg2Radian(-node.rotation);
+    console.log(node.relativeTransform);
+    const netransform = multiply(rotate(angleInRadians), node.relativeTransform);
+    console.log(netransform);
+    /*
+      console.log(node.relativeTransform)
+      let roter = node.rotation;
+      node.rotation = 0;
+    
+      console.log('old x',JSON.stringify(node.x),JSON.stringify(node.y),JSON.stringify(node.relativeTransform));
+      node.rotation = roter;
+      
+      console.log('new x',x,y,JSON.stringify(node.relativeTransform))
+    
+    
+    
+      const width = node.width;
+      const height = node.height;
+      console.log(x, y, width, height);
+      const rot = (node.rotation * Math.PI) / 180; // in radians
+    
+      // note, to calculate distance from rotation, you must flip the sign  (1/2)H because in cartesian coordinates y DECREASES as you
+      const realX = x + (1 / 2) * width * Math.cos(rot) /*- -1 * (1 / 2) * height * Math.sin(rot)  - (1 / 2) * width;
+        console.log(y,(1 / 2) * width * Math.sin(rot), -1 * (1 / 2) * height * Math.cos(rot), (1 / 2) * height)
+    
+      const realY =
+        y + (1 / 2) * width * Math.sin(rot) /*+ -1 * (1 / 2) * height * Math.cos(rot) +(1 / 2) * height;
+      return [realX, realY];*/
+    const totalLengthOfHypo = Math.sqrt(node.width * node.width + node.height * node.height);
 }
 // Calculate the transformation, i.e. the translation and scaling, required
 // to get the path to fill the svg area. Note that this assumes uniform
@@ -112,6 +263,7 @@ function getTranslationAndScaling(x, y, width, height) {
     var pathTranslX = svgRootCentreX - scaledPathCentreX;
     var pathTranslY = svgRootCentreY - scaledPathCentreY;
     console.log("scaled path x", scaledPathX, scaledPathWdth, "scaled path y", scaledPathY, scaledPathHght, "factor from scale", (origPathHght - origPathWdth) / 2, "xfactor from g");
+    //
     console.log(pathTranslX, pathTranslY, scale);
     return { pathTranslX, pathTranslY, scale };
 }
@@ -130,6 +282,7 @@ function getTransformedPathDStr(oldPathDStr, pathTranslX, pathTranslY, scale) {
     // for either an x or y coordinate
     var oldPathDArr = getArrayOfPathDComponents(oldPathDStr);
     var newPathDArr = [];
+    console.log(oldPathDArr);
     var commandParams, absOrRel, oldPathDComp, newPathDComp;
     // element index
     var idx = 0;
@@ -138,6 +291,8 @@ function getTransformedPathDStr(oldPathDStr, pathTranslX, pathTranslY, scale) {
         if (/^[A-Za-z]$/.test(oldPathDComp)) {
             // component is a single letter, i.e. an svg path command
             newPathDArr[idx] = oldPathDArr[idx];
+            console.log(oldPathDComp);
+            console.log(newPathDArr[idx]);
             switch (oldPathDComp.toUpperCase()) {
                 case "A": // elliptical arc command...the most complicated one
                     commandParams = ELLIPTICAL_ARC;
@@ -209,6 +364,7 @@ function getTransformedPathDStr(oldPathDStr, pathTranslX, pathTranslY, scale) {
             }
         }
     }
+    console.log(newPathDArr);
     return newPathDArr.join(" ");
 }
 function getArrayOfPathDComponents(str) {

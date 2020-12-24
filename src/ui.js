@@ -13,7 +13,7 @@ const App = () => {
         parent.postMessage({
             pluginMessage: {
                 type: "fetch",
-                currentVega: svgString
+                object: svgString
             },
         }, "*"); //
     }

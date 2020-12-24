@@ -19,7 +19,7 @@ const App = () => {
       {
         pluginMessage: {
           type: "fetch",
-          currentVega: svgString
+          object: svgString
 
         },
       },
