@@ -14,6 +14,9 @@ import SVGPath from "./SVGPaths.js";
 // This shows the HTML page in "ui.html".
 figma.showUI(__html__);
 
+const PADDING_WIDTH_REGEX = /(?<=translate\()\d+/;
+const PADDING_HEIGHT_REGEX = /(?<=translate\(\d+,)\d+/
+
 // Calls to "parent.postMessage" from within the HTML page will trigger this
 // callback. The callback will be passed the "pluginMessage" property of the
 // posted message.
@@ -28,23 +31,48 @@ figma.ui.onmessage = (msg) => {
     const nodes: SceneNode[] = [];
     console.log(msg);
     const rect = figma.createNodeFromSvg(msg.object);
+    const newAnnotationsLayer = figma.createComponent();
 
-    figma.createComponent();
+    console.log(rect);
+    const widthMatches = msg.object.match(PADDING_WIDTH_REGEX);
+    const heightMatches = msg.object.match(PADDING_HEIGHT_REGEX)
+
+    if(widthMatches){
+      const widthString = widthMatches[0];
+      newAnnotationsLayer.setPluginData('vegaPaddingWidth',widthString);
+    }
+
+    if(heightMatches){
+      const heightString = heightMatches[0];
+      newAnnotationsLayer.setPluginData('vegaPaddingHeight',heightString);
+    }
+
+    newAnnotationsLayer.name = 'Annotations Layer'
 
     figma.currentPage.appendChild(rect);
+
     nodes.push(rect);
 
     figma.currentPage.selection = nodes;
+
     figma.viewport.scrollAndZoomIntoView(nodes);
   }
 
   if (msg.type === "fetch") {
+    // 
     // grab annnotations layer, 
     // grab plugin data for the width/height padding 
     const newSelection = [figma.flatten(figma.currentPage.selection)];
     console.log(newSelection);
 
     for (const sceneNode of newSelection) {
+      // Get scene node type 
+      // if text 
+        // text has to group all nodes
+
+      // transform to vector 
+
+      // process path 
       if (sceneNode.type !== "VECTOR") {
         continue;
       }
@@ -53,44 +81,32 @@ figma.ui.onmessage = (msg) => {
       const rot = newNode.rotation;
 
       
-      console.log('stroked',newNode.relativeTransform,newNode.absoluteTransform);
+      //console.log('stroked',newNode.relativeTransform,newNode.absoluteTransform);
       const x = newNode.x;
       const y = newNode.y;
 
       const width = newNode.width;
       const height = newNode.height;
-      console.log('new vals',x,y,width,height);
+      //console.log('new vals',x,y,width,height);
       const paths = newNode.vectorPaths.map((vector) => {
         console.log('vectodata',vector.data);
         return vector.data;
       });
 
-      //const { pathTranslX, pathTranslY, scale } = getTranslationAndScaling(x, y, width, height);
-      console.log(paths);
-
       const pathSegs = paths.map((pathString) => {
         const svgPath = new SVGPath();
         const fixedPath = pathString.replace(/[\d]+[.][\d]+([e][-][\d]+)/g, '0.0');
-        console.log("imported", fixedPath);
-
         svgPath.importString(fixedPath);
-        console.log("imported", svgPath);
         return svgPath;
       });
 
       const pathStrings = pathSegs.map((segCollection) => {
         const [minx, miny, maxx, maxy, svgWidth, svgHeight] = segCollection.calculateBounds();
-        console.log("scaled", minx, miny, maxx, maxy, svgWidth, svgHeight);
 
         const maxDimension = Math.max(svgWidth, svgHeight);
 
-        console.log(maxDimension);
-        //segCollection.rotate(0, 0, -rot);
         segCollection.scale(2 / maxDimension);
-        console.log(segCollection);
         segCollection.center(0, 0);
-        console.log(segCollection);
-        console.log(segCollection);
         return segCollection.export();
       });
      
@@ -102,8 +118,8 @@ figma.ui.onmessage = (msg) => {
 
       // rotation throws it off!
 
-      console.log("x", (1 / 2) * maxDimension, x, pX, 0, rot);
-      console.log("y", (1 / 2) * maxDimension, y, pY, 0);
+      //console.log("x", (1 / 2) * maxDimension, x, pX, 0, rot);
+      //console.log("y", (1 / 2) * maxDimension, y, pY, 0);
 
       const tX = (1 / 2) * width + x - pX //+ (maxDimension-height)/2; // total translate
       const tY = (1 / 2) * height + y - pY //+ (maxDimension-height)/2; // total translate
