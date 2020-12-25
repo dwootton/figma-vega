@@ -16,6 +16,8 @@ figma.showUI(__html__);
 
 const PADDING_WIDTH_REGEX = /(?<=translate\()\d+/;
 const PADDING_HEIGHT_REGEX = /(?<=translate\(\d+,)\d+/
+const SVG_WIDTH_REGEX = /(?<=width=")\d+/;
+const SVG_HEIGHT_REGEX = /(?<=height=")\d+/;
 
 // Calls to "parent.postMessage" from within the HTML page will trigger this
 // callback. The callback will be passed the "pluginMessage" property of the
@@ -31,19 +33,31 @@ figma.ui.onmessage = (msg) => {
     const nodes: SceneNode[] = [];
     console.log(msg);
     const rect = figma.createNodeFromSvg(msg.object);
-    const newAnnotationsLayer = figma.createComponent();
+    // grab width and height
+    const newAnnotationsLayer = figma.createFrame();
 
-    console.log(rect);
-    const widthMatches = msg.object.match(PADDING_WIDTH_REGEX);
-    const heightMatches = msg.object.match(PADDING_HEIGHT_REGEX)
+    // set annotations width and height
+    const widthMatches = msg.object.match(SVG_WIDTH_REGEX);
+    const heightMatches = msg.object.match(SVG_HEIGHT_REGEX)
 
-    if(widthMatches){
-      const widthString = widthMatches[0];
+    if(widthMatches && heightMatches){
+      const width = Number(widthMatches[0]);
+      const height = Number(heightMatches[0]);
+      newAnnotationsLayer.resize(width,height);
+    }
+
+   
+    const paddingWidthMatches = msg.object.match(PADDING_WIDTH_REGEX);
+    const paddingHeightMatches = msg.object.match(PADDING_HEIGHT_REGEX)
+
+
+    if(paddingWidthMatches){
+      const widthString = paddingWidthMatches[0];
       newAnnotationsLayer.setPluginData('vegaPaddingWidth',widthString);
     }
 
-    if(heightMatches){
-      const heightString = heightMatches[0];
+    if(paddingHeightMatches){
+      const heightString = paddingHeightMatches[0];
       newAnnotationsLayer.setPluginData('vegaPaddingHeight',heightString);
     }
 
@@ -63,7 +77,7 @@ figma.ui.onmessage = (msg) => {
     // grab annnotations layer, 
     // grab plugin data for the width/height padding 
     const newSelection = [figma.flatten(figma.currentPage.selection)];
-    console.log(newSelection);
+    console.log(newSelection, navigator, navigator && navigator.clipboard.writeText("cxopied!"));
 
     for (const sceneNode of newSelection) {
       // Get scene node type 
