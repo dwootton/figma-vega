@@ -67,10 +67,10 @@ figma.ui.onmessage = (msg) => {
     
     const visualization = figma.createNodeFromSvg(msg.object);
     visualization.name = `Visualization - ${id}`;
-    
+
     const newAnnotationsLayer = figma.createFrame();
+    // place annotations layer on top and make transparent
     const fills = clone(newAnnotationsLayer.fills);
-    console.log(fills);
     fills[0].opacity = 0;
     newAnnotationsLayer.fills = fills;
 
