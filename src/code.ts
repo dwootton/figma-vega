@@ -19,6 +19,37 @@ const PADDING_HEIGHT_REGEX = /(?<=translate\(\d+,)\d+/
 const SVG_WIDTH_REGEX = /(?<=width=")\d+/;
 const SVG_HEIGHT_REGEX = /(?<=height=")\d+/;
 
+function makeid(length) {
+  var result           = '';
+  var characters       = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
+  var charactersLength = characters.length;
+  for ( var i = 0; i < length; i++ ) {
+     result += characters.charAt(Math.floor(Math.random() * charactersLength));
+  }
+  return result;
+}
+function clone(val) {
+  const type = typeof val
+  if (val === null) {
+    return null
+  } else if (type === 'undefined' || type === 'number' ||
+             type === 'string' || type === 'boolean') {
+    return val
+  } else if (type === 'object') {
+    if (val instanceof Array) {
+      return val.map(x => clone(x))
+    } else if (val instanceof Uint8Array) {
+      return new Uint8Array(val)
+    } else {
+      let o = {}
+      for (const key in val) {
+        o[key] = clone(val[key])
+      }
+      return o
+    }
+  }
+  throw 'unknown'
+}
 // Calls to "parent.postMessage" from within the HTML page will trigger this
 // callback. The callback will be passed the "pluginMessage" property of the
 // posted message.
@@ -31,11 +62,21 @@ figma.ui.onmessage = (msg) => {
 
   if (msg.type === "create") {
     const nodes: SceneNode[] = [];
+    const id = makeid(5);
     console.log(msg);
-    const rect = figma.createNodeFromSvg(msg.object);
-    // grab width and height
+    
+    const visualization = figma.createNodeFromSvg(msg.object);
+    visualization.name = `Visualization - ${id}`;
+    
     const newAnnotationsLayer = figma.createFrame();
+    const fills = clone(newAnnotationsLayer.fills);
+    console.log(fills);
+    fills[0].opacity = 0;
+    newAnnotationsLayer.fills = fills;
 
+    newAnnotationsLayer.name = `Annotations Layer - ${id}`;
+    // grab width and height
+    
     // set annotations width and height
     const widthMatches = msg.object.match(SVG_WIDTH_REGEX);
     const heightMatches = msg.object.match(SVG_HEIGHT_REGEX)
@@ -61,11 +102,9 @@ figma.ui.onmessage = (msg) => {
       newAnnotationsLayer.setPluginData('vegaPaddingHeight',heightString);
     }
 
-    newAnnotationsLayer.name = 'Annotations Layer'
+    figma.currentPage.appendChild(visualization);
 
-    figma.currentPage.appendChild(rect);
-
-    nodes.push(rect);
+    nodes.push(visualization);
 
     figma.currentPage.selection = nodes;
 
