@@ -15,41 +15,51 @@ import SVGPath from "./SVGPaths.js";
 figma.showUI(__html__);
 
 const PADDING_WIDTH_REGEX = /(?<=translate\()\d+/;
-const PADDING_HEIGHT_REGEX = /(?<=translate\(\d+,)\d+/
+const PADDING_HEIGHT_REGEX = /(?<=translate\(\d+,)\d+/;
 const SVG_WIDTH_REGEX = /(?<=width=")\d+/;
 const SVG_HEIGHT_REGEX = /(?<=height=")\d+/;
 
 function makeid(length) {
-  var result           = '';
-  var characters       = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
+  var result = "";
+  var characters = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789";
   var charactersLength = characters.length;
-  for ( var i = 0; i < length; i++ ) {
-     result += characters.charAt(Math.floor(Math.random() * charactersLength));
+  for (var i = 0; i < length; i++) {
+    result += characters.charAt(Math.floor(Math.random() * charactersLength));
   }
   return result;
 }
 function clone(val) {
-  const type = typeof val
+  const type = typeof val;
   if (val === null) {
-    return null
-  } else if (type === 'undefined' || type === 'number' ||
-             type === 'string' || type === 'boolean') {
-    return val
-  } else if (type === 'object') {
+    return null;
+  } else if (type === "undefined" || type === "number" || type === "string" || type === "boolean") {
+    return val;
+  } else if (type === "object") {
     if (val instanceof Array) {
-      return val.map(x => clone(x))
+      return val.map((x) => clone(x));
     } else if (val instanceof Uint8Array) {
-      return new Uint8Array(val)
+      return new Uint8Array(val);
     } else {
-      let o = {}
+      let o = {};
       for (const key in val) {
-        o[key] = clone(val[key])
+        o[key] = clone(val[key]);
       }
-      return o
+      return o;
     }
   }
-  throw 'unknown'
+  throw "unknown";
 }
+
+function* walkTree(node) {
+  yield node;
+  const { children } = node;
+  if (children) {
+    for (const child of children) {
+      yield* walkTree(child);
+    }
+  }
+}
+
 // Calls to "parent.postMessage" from within the HTML page will trigger this
 // callback. The callback will be passed the "pluginMessage" property of the
 // posted message.
@@ -64,11 +74,12 @@ figma.ui.onmessage = (msg) => {
     const nodes: SceneNode[] = [];
     const id = makeid(5);
     console.log(msg);
+
     
-    const visualization = figma.createNodeFromSvg(msg.object);
-    visualization.name = `Visualization - ${id}`;
 
     const newAnnotationsLayer = figma.createFrame();
+    const visualization = figma.createNodeFromSvg(msg.object);
+    visualization.name = `Visualization - ${id}`;
     // place annotations layer on top and make transparent
     const fills = clone(newAnnotationsLayer.fills);
     fills[0].opacity = 0;
@@ -76,30 +87,28 @@ figma.ui.onmessage = (msg) => {
 
     newAnnotationsLayer.name = `Annotations Layer - ${id}`;
     // grab width and height
-    
+
     // set annotations width and height
     const widthMatches = msg.object.match(SVG_WIDTH_REGEX);
-    const heightMatches = msg.object.match(SVG_HEIGHT_REGEX)
+    const heightMatches = msg.object.match(SVG_HEIGHT_REGEX);
 
-    if(widthMatches && heightMatches){
+    if (widthMatches && heightMatches) {
       const width = Number(widthMatches[0]);
       const height = Number(heightMatches[0]);
-      newAnnotationsLayer.resize(width,height);
+      newAnnotationsLayer.resize(width, height);
     }
 
-   
     const paddingWidthMatches = msg.object.match(PADDING_WIDTH_REGEX);
-    const paddingHeightMatches = msg.object.match(PADDING_HEIGHT_REGEX)
+    const paddingHeightMatches = msg.object.match(PADDING_HEIGHT_REGEX);
 
-
-    if(paddingWidthMatches){
+    if (paddingWidthMatches) {
       const widthString = paddingWidthMatches[0];
-      newAnnotationsLayer.setPluginData('vegaPaddingWidth',widthString);
+      newAnnotationsLayer.setPluginData("vegaPaddingWidth", widthString);
     }
 
-    if(paddingHeightMatches){
+    if (paddingHeightMatches) {
       const heightString = paddingHeightMatches[0];
-      newAnnotationsLayer.setPluginData('vegaPaddingHeight',heightString);
+      newAnnotationsLayer.setPluginData("vegaPaddingHeight", heightString);
     }
 
     figma.currentPage.appendChild(visualization);
@@ -112,76 +121,79 @@ figma.ui.onmessage = (msg) => {
   }
 
   if (msg.type === "fetch") {
-    // 
-    // grab annnotations layer, 
-    // grab plugin data for the width/height padding 
-    const newSelection = [figma.flatten(figma.currentPage.selection)];
-    console.log(newSelection, navigator, navigator && navigator.clipboard.writeText("cxopied!"));
+    // find current selection
 
+    //
+    // grab annnotations layer,
+    // grab plugin data for the width/height padding
+    //const newSelection = [figma.flatten(figma.currentPage.selection)];
+    const newSelection = figma.currentPage.selection;
+
+    const visaulizationPaddingWidth = newSelection[0].getPluginData('vegaPaddingWidth');
+    const visaulizationPaddingHeight = newSelection[0].getPluginData('vegaPaddingHeight')
+
+    console.log("currentSelection", newSelection);
+    const marksToAdd = [];
     for (const sceneNode of newSelection) {
-      // Get scene node type 
-      // if text 
-        // text has to group all nodes
+      const nodeIterator = walkTree(sceneNode);
+      let nodeStep = nodeIterator.next();
+      while (!nodeStep.done) {
+        const node = nodeStep.value;
+        // get node type
+        console.log('node value',node);
+        const nodeType =  node.type;
+        // if nodeType is group
 
-      // transform to vector 
+        const vectorizedNode = vectorize(node);
+        //const nodeStyles = extractStyles(vectorizedNode); // change to translate styles into vegaspec
+        const svgPath = createNormalizedPath(vectorizedNode);
 
-      // process path 
-      if (sceneNode.type !== "VECTOR") {
-        continue;
-      }
-      const newNode = sceneNode// as VectorNode;
-      
-      const rot = newNode.rotation;
+        const {tX, tY, scale} = calculatePlacement(vectorizedNode,visaulizationPaddingWidth,visaulizationPaddingHeight)
+        console.log(vectorizedNode.x,vectorizedNode.y,vectorizedNode.width,vectorizedNode.height,node.vectorPaths)
 
-      
-      //console.log('stroked',newNode.relativeTransform,newNode.absoluteTransform);
-      const x = newNode.x;
-      const y = newNode.y;
 
-      const width = newNode.width;
-      const height = newNode.height;
-      //console.log('new vals',x,y,width,height);
-      const paths = newNode.vectorPaths.map((vector) => {
-        console.log('vectodata',vector.data);
-        return vector.data;
-      });
+        function calculatePlacement(node : VectorNode, paddingWidth : Number, paddingHeight: Number){
+          const width = node.width;
+          const height = node.height;
+          const maxDimension = Math.max(width, height);
+          return {tX,tY, scale}
+        }
+        // 
+        /*
+        const 
+        console.log('node typw',node.type);
 
-      const pathSegs = paths.map((pathString) => {
-        const svgPath = new SVGPath();
-        const fixedPath = pathString.replace(/[\d]+[.][\d]+([e][-][\d]+)/g, '0.0');
-        svgPath.importString(fixedPath);
-        return svgPath;
-      });
 
-      const pathStrings = pathSegs.map((segCollection) => {
-        const [minx, miny, maxx, maxy, svgWidth, svgHeight] = segCollection.calculateBounds();
 
-        const maxDimension = Math.max(svgWidth, svgHeight);
+        // Get scene node type
+        // if text
+        // text make svg for all elements
 
-        segCollection.scale(2 / maxDimension);
-        segCollection.center(0, 0);
-        return segCollection.export();
-      });
-     
+        // transform to vector
 
-      const maxDimension = Math.max(width, height);
+        // process path
 
-      const pX = 15; // current Vega padding
-      const pY = 5;
 
-      // rotation throws it off!
+        
 
-      //console.log("x", (1 / 2) * maxDimension, x, pX, 0, rot);
-      //console.log("y", (1 / 2) * maxDimension, y, pY, 0);
+        
 
-      const tX = (1 / 2) * width + x - pX //+ (maxDimension-height)/2; // total translate
-      const tY = (1 / 2) * height + y - pY //+ (maxDimension-height)/2; // total translate
+        const pX = 15; // current Vega padding
+        const pY = 5;
 
-      const vectorScale = maxDimension * maxDimension;
+        // rotation throws it off!
 
-      //
-      const vals = pathStrings.map((path) => {
-        return `{
+        //console.log("x", (1 / 2) * maxDimension, x, pX, 0, rot);
+        //console.log("y", (1 / 2) * maxDimension, y, pY, 0);
+
+        const tX = (1 / 2) * width + x - pX; //+ (maxDimension-height)/2; // total translate
+        const tY = (1 / 2) * height + y - pY; //+ (maxDimension-height)/2; // total translate
+
+        const vectorScale = maxDimension * maxDimension;
+
+        //
+        const vals = pathStrings.map((path) => {
+          return `{
           "type": "symbol",
           "interactive": false,
           "encode": {
@@ -199,9 +211,12 @@ figma.ui.onmessage = (msg) => {
             }
           }
          }`;
-      });
+        });
 
-      console.log(JSON.stringify(vals[0]).replace(/\\n/g, "").replace(/\\/g, ""));
+        console.log(JSON.stringify(vals[0]).replace(/\\n/g, "").replace(/\\/g, ""));*/
+        nodeStep = nodeIterator.next();
+
+      }
     }
   }
 
@@ -209,8 +224,60 @@ figma.ui.onmessage = (msg) => {
   // keep running, which shows the cancel button at the bottom of the screen.
   //figma.closePlugin();
 };
+function createNormalizedPath(node :VectorNode){
+  const x = node.x;
+  const y = node.y;
 
-function deg2Radian(deg){
+  const width = node.width;
+  const height = node.height;
+
+  const paths = node.vectorPaths.map((vector) => {
+    console.log("vectodata", vector.data);
+    return vector.data;
+  });
+
+  const pathSegs = paths.map((pathString) => {
+    const svgPath = new SVGPath();
+    // replace any negative exponents with 0
+    const fixedPath = pathString.replace(/[\d]+[.][\d]+([e][-][\d]+)/g, "0.0");
+    svgPath.importString(fixedPath);
+    return svgPath;
+  });
+
+  const pathStrings = pathSegs.map((segCollection) => {
+    const [minx, miny, maxx, maxy, svgWidth, svgHeight] = segCollection.calculateBounds();
+
+    const maxDimension = Math.max(svgWidth, svgHeight);
+
+    segCollection.scale(2 / maxDimension);
+    segCollection.center(0, 0);
+    return segCollection.export();
+  });
+
+  return pathStrings.join(' ');
+}
+function extractStyles(node: VectorNode){
+  // extract fills, color, strokes, etc
+  return {
+    opacity: node.opacity,
+    effects: node.effects,
+    fills: node.fills,
+    strokes: node.strokes,
+
+    strokeWeight: node.strokeWeight,
+
+  }
+}
+
+function vectorize(node: SceneNode) : VectorNode{
+  // if node is text, combine all vector paths 
+  let vectorNode = figma.flatten([node]);
+
+ 
+  return vectorNode;
+}
+
+function deg2Radian(deg) {
   return deg * (Math.PI / 180);
 }
 
@@ -237,57 +304,65 @@ function multiplyMatrices(matrixA, matrixB) {
 }
 function multiply(a, b) {
   return [
-    [ a[0][0] * b[0][0] + a[0][1] * b[1][0], a[0][0] * b[0][1] + a[0][1] * b[1][1], a[0][0] * b[0][2] + a[0][1] * b[1][2] + a[0][2] ],
-    [ a[1][0] * b[0][0] + a[1][1] * b[1][0], a[1][0] * b[0][1] + a[1][1] * b[1][1] + 0, a[1][0] * b[0][2] + a[1][1] * b[1][2] + a[1][2] ]
-  ]
+    [
+      a[0][0] * b[0][0] + a[0][1] * b[1][0],
+      a[0][0] * b[0][1] + a[0][1] * b[1][1],
+      a[0][0] * b[0][2] + a[0][1] * b[1][2] + a[0][2],
+    ],
+    [
+      a[1][0] * b[0][0] + a[1][1] * b[1][0],
+      a[1][0] * b[0][1] + a[1][1] * b[1][1] + 0,
+      a[1][0] * b[0][2] + a[1][1] * b[1][2] + a[1][2],
+    ],
+  ];
 }
 
 // Creates a "move" transform.
 function move(x, y) {
   return [
     [1, 0, x],
-    [0, 1, y]
-  ]
+    [0, 1, y],
+  ];
 }
 
 // Creates a "rotate" transform.
 function rotate(theta) {
   return [
     [Math.cos(theta), Math.sin(theta), 0],
-    [-Math.sin(theta), Math.cos(theta), 0]
-  ]
+    [-Math.sin(theta), Math.cos(theta), 0],
+  ];
 }
-function calculateXYFromNode(node){
+function calculateXYFromNode(node) {
   let locationRelativeToParentX = node.x;
   let locationRelativeToParentY = node.y;
 
-  let x = node.width/2
-  let y = node.width/2
-
+  let x = node.width / 2;
+  let y = node.width / 2;
 
   let rotationDeg = -node.rotation;
-  let rotationRad = (Math.PI*rotationDeg)/180;
+  let rotationRad = (Math.PI * rotationDeg) / 180;
 
-  let xTransform = x - x *Math.cos(rotationRad) + y*Math.sin(rotationRad);
-  let yTransform = y - x *Math.sin(rotationRad) + y*Math.cos(rotationRad);
+  let xTransform = x - x * Math.cos(rotationRad) + y * Math.sin(rotationRad);
+  let yTransform = y - x * Math.sin(rotationRad) + y * Math.cos(rotationRad);
 
-  let rotationTransform = [[Math.cos(rotationRad),-Math.sin(rotationRad),xTransform],[Math.sin(rotationRad),Math.cos(rotationRad), yTransform]];
-  console.log(JSON.stringify(node.relativeTransform))
+  let rotationTransform = [
+    [Math.cos(rotationRad), -Math.sin(rotationRad), xTransform],
+    [Math.sin(rotationRad), Math.cos(rotationRad), yTransform],
+  ];
+  console.log(JSON.stringify(node.relativeTransform));
 
   node.relativeTransform = rotationTransform;
 
-  console.log(JSON.stringify(node.relativeTransform))
+  console.log(JSON.stringify(node.relativeTransform));
   node.x += locationRelativeToParentX;
   node.y += locationRelativeToParentY;
-  console.log(JSON.stringify(node.y),JSON.stringify(node.x))
-
+  console.log(JSON.stringify(node.y), JSON.stringify(node.x));
 }
 /**
  * Function that calculates the correct XY position ignoring rotation
  * @param node
  */
-function newCalculateRelative (originalNode) {
-
+function newCalculateRelative(originalNode) {
   const node = originalNode.clone();
   console.log(JSON.stringify(node.relativeTransform));
   //const x = originalNode.x;
@@ -302,41 +377,39 @@ function newCalculateRelative (originalNode) {
 
   let transform = JSON.parse(JSON.stringify(node.relativeTransform));
 
-  // move to 0 
+  // move to 0
   let x = transform[0][2];
   let y = transform[1][2];
 
   transform[0][2] = 0;
   transform[1][2] = 0;
 
-  console.log('from 360', JSON.stringify(transform));
-  transform = multiply(rotate( 2*Math.PI - (node.rotation-Math.PI)/180), transform)
-  console.log('from after rot', JSON.stringify(transform));
+  console.log("from 360", JSON.stringify(transform));
+  transform = multiply(rotate(2 * Math.PI - (node.rotation - Math.PI) / 180), transform);
+  console.log("from after rot", JSON.stringify(transform));
 
-  transform = multiply(move(x,y), transform);
+  transform = multiply(move(x, y), transform);
 
-  console.log('from after move', JSON.stringify(transform));
-
+  console.log("from after move", JSON.stringify(transform));
 
   const difX = node.x;
   const difY = node.y;
-  console.log('calced',difX,difY, x+difX,y+difY);
+  console.log("calced", difX, difY, x + difX, y + difY);
   console.log(JSON.stringify(node.relativeTransform));
-  console.log(multiply(rotate( - node.rotation), transform));
+  console.log(multiply(rotate(-node.rotation), transform));
 
-
-  console.log('from 360', multiply(rotate( - (node.rotation-Math.PI)/180), node.relativeTransform));
-
-
-
+  console.log(
+    "from 360",
+    multiply(rotate(-(node.rotation - Math.PI) / 180), node.relativeTransform)
+  );
 
   // rotate back
   const angleInRadians = deg2Radian(-node.rotation);
-  console.log(node.relativeTransform)
-  const netransform = multiply(rotate(angleInRadians), node.relativeTransform)
+  console.log(node.relativeTransform);
+  const netransform = multiply(rotate(angleInRadians), node.relativeTransform);
   console.log(netransform);
 
-/*
+  /*
   console.log(node.relativeTransform)
   let roter = node.rotation;
   node.rotation = 0;
@@ -360,7 +433,7 @@ function newCalculateRelative (originalNode) {
   const realY =
     y + (1 / 2) * width * Math.sin(rot) /*+ -1 * (1 / 2) * height * Math.cos(rot) +(1 / 2) * height;
   return [realX, realY];*/
-  const totalLengthOfHypo = Math.sqrt(node.width*node.width+node.height*node.height);
+  const totalLengthOfHypo = Math.sqrt(node.width * node.width + node.height * node.height);
 }
 
 // Calculate the transformation, i.e. the translation and scaling, required
