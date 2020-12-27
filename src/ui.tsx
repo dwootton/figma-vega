@@ -1,5 +1,7 @@
 import * as React from "react";
 import * as ReactDOM from "react-dom";
+import * as paper from 'paper';
+
 import "./ui.css";
 import { processSvg } from "./utils";
 //@ts-ignore
@@ -7,7 +9,35 @@ import { VegaLite } from "react-vega";
 //@ts-ignore
 import embed from "vega-embed";
 
+const pluginTypes = Object.freeze({
+  "modifyPath":"modifyPath"
+})
+
+
+
 declare function require(path: string): any;
+onmessage = (event) => {
+  if(event.data.pluginMessage.type === pluginTypes.modifyPath){
+    const vectorPaths = event.data.pluginMessage.data;
+    paper.setup('');
+    console.log(vectorPaths);
+    console.log(paper);
+    const pathString : string = vectorPaths.map(path=>path.data).join(' ');
+    console.log(pathString);
+
+    const parsedPath = new paper.Path(pathString);
+    console.log(parsedPath);
+    console.log(parsedPath.bounds);
+
+
+  }
+  console.log("got this from the plugin code", event.data)
+  // read the svg string 
+  // simplify it
+  // translate it to the middle 
+  // 
+
+}
 
 const App = () => {
   const [svgString, setSvgString] = React.useState("");

@@ -1,7 +1,8 @@
-//@ts-ignore
-
-import { SingleEntryPlugin } from "webpack";
+import * as React from 'react';
+//const Paper = require('paper')
 import SVGPath from "./SVGPaths.js";
+//import {createNormalizedPath} from "./helperFunctions";
+
 
 //import {SVGpath, SVGsegs} from './SVGPaths.js';
 // This plugin will open a window to prompt the user to enter a number, and
@@ -75,8 +76,6 @@ figma.ui.onmessage = (msg) => {
     const id = makeid(5);
     console.log(msg);
 
-    
-
     const newAnnotationsLayer = figma.createFrame();
     const visualization = figma.createNodeFromSvg(msg.object);
     visualization.name = `Visualization - ${id}`;
@@ -122,15 +121,14 @@ figma.ui.onmessage = (msg) => {
 
   if (msg.type === "fetch") {
     // find current selection
-
-    //
+    //@ts-ignore    //
     // grab annnotations layer,
     // grab plugin data for the width/height padding
     //const newSelection = [figma.flatten(figma.currentPage.selection)];
-    const newSelection = figma.currentPage.selection;
+    const newSelection = figma.currentPage.selection.map((node) => node.clone());
 
-    const visaulizationPaddingWidth = newSelection[0].getPluginData('vegaPaddingWidth');
-    const visaulizationPaddingHeight = newSelection[0].getPluginData('vegaPaddingHeight')
+    const visaulizationPaddingWidth = Number(newSelection[0].getPluginData("vegaPaddingWidth"));
+    const visaulizationPaddingHeight = Number(newSelection[0].getPluginData("vegaPaddingHeight"));
 
     console.log("currentSelection", newSelection);
     const marksToAdd = [];
@@ -138,27 +136,51 @@ figma.ui.onmessage = (msg) => {
       const nodeIterator = walkTree(sceneNode);
       let nodeStep = nodeIterator.next();
       while (!nodeStep.done) {
-        const node = nodeStep.value;
+        const node = nodeStep.value.clone();
         // get node type
-        console.log('node value',node);
-        const nodeType =  node.type;
+        console.log("node value", node);
+        const nodeType = node.type;
         // if nodeType is group
 
         const vectorizedNode = vectorize(node);
+
+        figma.ui.postMessage({data:vectorizedNode.vectorPaths, type:"modifyPath"});
         //const nodeStyles = extractStyles(vectorizedNode); // change to translate styles into vegaspec
-        const svgPath = createNormalizedPath(vectorizedNode);
+        /*const svgPath = createNormalizedPath(vectorizedNode);
 
-        const {tX, tY, scale} = calculatePlacement(vectorizedNode,visaulizationPaddingWidth,visaulizationPaddingHeight)
-        console.log(vectorizedNode.x,vectorizedNode.y,vectorizedNode.width,vectorizedNode.height,node.vectorPaths)
+        const { width, height, tX, tY, scale } = calculatePlacement(
+          vectorizedNode,
+          visaulizationPaddingWidth,
+          visaulizationPaddingHeight
+        );
 
+        console.log(
+          vectorizedNode.x,
+          vectorizedNode.y,
+          vectorizedNode.width,
+          vectorizedNode.height,
+          node.vectorPaths
+        );
 
-        function calculatePlacement(node : VectorNode, paddingWidth : Number, paddingHeight: Number){
-          const width = node.width;
-          const height = node.height;
-          const maxDimension = Math.max(width, height);
-          return {tX,tY, scale}
-        }
-        // 
+        console.log(`{
+          "type": "symbol",
+          "interactive": false,
+          "encode": {
+            "enter": {
+              "shape": {"value": "${svgPath}"},
+              "size":{"value":${scale}},
+              "fill":{"value":"black"}
+            },
+            "update": {
+              "width":{"value":${width}},
+              "height":{"value":${height}},
+              "x": {"value": ${tX}},
+              "y": {"value": ${tY}}
+            }
+          }
+         }`);*/
+
+        //
         /*
         const 
         console.log('node typw',node.type);
@@ -186,10 +208,7 @@ figma.ui.onmessage = (msg) => {
         //console.log("x", (1 / 2) * maxDimension, x, pX, 0, rot);
         //console.log("y", (1 / 2) * maxDimension, y, pY, 0);
 
-        const tX = (1 / 2) * width + x - pX; //+ (maxDimension-height)/2; // total translate
-        const tY = (1 / 2) * height + y - pY; //+ (maxDimension-height)/2; // total translate
-
-        const vectorScale = maxDimension * maxDimension;
+        
 
         //
         const vals = pathStrings.map((path) => {
@@ -215,7 +234,6 @@ figma.ui.onmessage = (msg) => {
 
         console.log(JSON.stringify(vals[0]).replace(/\\n/g, "").replace(/\\/g, ""));*/
         nodeStep = nodeIterator.next();
-
       }
     }
   }
@@ -224,39 +242,23 @@ figma.ui.onmessage = (msg) => {
   // keep running, which shows the cancel button at the bottom of the screen.
   //figma.closePlugin();
 };
-function createNormalizedPath(node :VectorNode){
+
+function calculatePlacement(node: VectorNode, paddingX: number, paddingY: number) {
+  const width = node.width;
+  const height = node.height;
   const x = node.x;
   const y = node.y;
 
-  const width = node.width;
-  const height = node.height;
+  const maxDimension = Math.max(width, height);
 
-  const paths = node.vectorPaths.map((vector) => {
-    console.log("vectodata", vector.data);
-    return vector.data;
-  });
+  const tX = (1 / 2) * width + x - paddingX; //+ (maxDimension-height)/2; // total translate
+  const tY = (1 / 2) * height + y - paddingY; //+ (maxDimension-height)/2; // total translate
 
-  const pathSegs = paths.map((pathString) => {
-    const svgPath = new SVGPath();
-    // replace any negative exponents with 0
-    const fixedPath = pathString.replace(/[\d]+[.][\d]+([e][-][\d]+)/g, "0.0");
-    svgPath.importString(fixedPath);
-    return svgPath;
-  });
-
-  const pathStrings = pathSegs.map((segCollection) => {
-    const [minx, miny, maxx, maxy, svgWidth, svgHeight] = segCollection.calculateBounds();
-
-    const maxDimension = Math.max(svgWidth, svgHeight);
-
-    segCollection.scale(2 / maxDimension);
-    segCollection.center(0, 0);
-    return segCollection.export();
-  });
-
-  return pathStrings.join(' ');
+  const scale = maxDimension * maxDimension;
+  return { width, height, tX, tY, scale };
 }
-function extractStyles(node: VectorNode){
+
+function extractStyles(node: VectorNode) {
   // extract fills, color, strokes, etc
   return {
     opacity: node.opacity,
@@ -265,15 +267,13 @@ function extractStyles(node: VectorNode){
     strokes: node.strokes,
 
     strokeWeight: node.strokeWeight,
-
-  }
+  };
 }
 
-function vectorize(node: SceneNode) : VectorNode{
-  // if node is text, combine all vector paths 
+function vectorize(node: SceneNode): VectorNode {
+  // if node is text, combine all vector paths
   let vectorNode = figma.flatten([node]);
 
- 
   return vectorNode;
 }
 
