@@ -8,6 +8,7 @@ import { processSvg } from "./utils";
 import { VegaLite } from "react-vega";
 //@ts-ignore
 import embed from "vega-embed";
+import { Path } from "paper";
 
 const pluginTypes = Object.freeze({
   "modifyPath":"modifyPath"
@@ -29,6 +30,16 @@ onmessage = (event) => {
     console.log(parsedPath);
     console.log(parsedPath.bounds);
 
+    const {width, height,x, y,center} = parsedPath.bounds;
+    console.log("pathsegs", width, height,x, y,center);
+  
+    const maxDimension = Math.max(width, height);
+  
+    parsedPath.scale(2 / maxDimension);
+    const {scaledwidth, scaledheight,scaledx, scaledy,scaledcenter} = parsedPath.bounds;
+    console.log('scaled',scaledwidth, scaledheight,scaledx, scaledy,scaledcenter);
+    parsedPath.translate(new paper.Point(-center.x, -center.y));
+    console.log()
 
   }
   console.log("got this from the plugin code", event.data)
