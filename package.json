@@ -31,6 +31,7 @@
     "react-vega-lite": "^6.1.0",
     "simplify-js": "^1.2.4",
     "svg-path-bounds": "^1.0.1",
+    "svgpath": "github:kpym/SVGPathy",
     "vega": "^5.17.0",
     "vega-embed": "^6.14.2",
     "vega-lite": "^4.17.0"

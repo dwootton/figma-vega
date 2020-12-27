@@ -127,8 +127,7 @@ figma.ui.onmessage = (msg) => {
     //const newSelection = [figma.flatten(figma.currentPage.selection)];
     const newSelection = figma.currentPage.selection.map((node) => node.clone());
 
-    const visaulizationPaddingWidth = Number(newSelection[0].getPluginData("vegaPaddingWidth"));
-    const visaulizationPaddingHeight = Number(newSelection[0].getPluginData("vegaPaddingHeight"));
+   
 
     console.log("currentSelection", newSelection);
     const marksToAdd = [];
@@ -136,15 +135,22 @@ figma.ui.onmessage = (msg) => {
       const nodeIterator = walkTree(sceneNode);
       let nodeStep = nodeIterator.next();
       while (!nodeStep.done) {
+        
         const node = nodeStep.value.clone();
         // get node type
+        if(node.type === "FRAME"){
+          nodeStep = nodeIterator.next();
+          continue;
+        }
+        
         console.log("node value", node);
         const nodeType = node.type;
         // if nodeType is group
 
         const vectorizedNode = vectorize(node);
 
-        figma.ui.postMessage({data:vectorizedNode.vectorPaths, type:"modifyPath"});
+
+        figma.ui.postMessage({data:vectorizedNode.vectorPaths, nodeId:vectorizedNode.id, type:"modifyPath"})
         //const nodeStyles = extractStyles(vectorizedNode); // change to translate styles into vegaspec
         /*const svgPath = createNormalizedPath(vectorizedNode);
 
@@ -238,6 +244,47 @@ figma.ui.onmessage = (msg) => {
     }
   }
 
+  if(msg.type === "sendScaled"){
+    console.log('in scaledSend!',msg.object);
+    const newSelection = figma.currentPage.selection;
+
+    const visaulizationPaddingWidth = Number(newSelection[0].getPluginData("vegaPaddingWidth"));
+    const visaulizationPaddingHeight = Number(newSelection[0].getPluginData("vegaPaddingHeight"));
+    const vectorizedNode = figma.getNodeById(msg.nodeId);
+
+    // lines and vector
+
+    if(vectorizedNode.type !== 'VECTOR'){
+      return 
+    }
+
+    const { width, height, tX, tY, scale } = calculatePlacement(
+      vectorizedNode,
+      visaulizationPaddingWidth,
+      visaulizationPaddingHeight
+    );
+
+
+    console.log(`{
+      "type": "symbol",
+      "interactive": false,
+      "encode": {
+        "enter": {
+          "shape": {"value": "${msg.object}"},
+          "size":{"value":${scale}},
+          "fill":{"value":"black"}
+        },
+        "update": {
+          "width":{"value":${width}},
+          "height":{"value":${height}},
+          "x": {"value": ${tX}},
+          "y": {"value": ${tY}}
+        }
+      }
+     }`);
+    
+  }
+
   // Make sure to close the plugin when you're done. Otherwise the plugin will
   // keep running, which shows the cancel button at the bottom of the screen.
   //figma.closePlugin();
@@ -273,6 +320,12 @@ function extractStyles(node: VectorNode) {
 function vectorize(node: SceneNode): VectorNode {
   // if node is text, combine all vector paths
   let vectorNode = figma.flatten([node]);
+
+  console.log(node.type)
+
+  if(node.type === "LINE" || node.type === "VECTOR"){
+    vectorNode = vectorNode.outlineStroke();
+  }
 
   return vectorNode;
 }

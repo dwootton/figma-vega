@@ -1,6 +1,8 @@
 import * as React from "react";
 import * as ReactDOM from "react-dom";
 import * as paper from 'paper';
+//@ts-ignore
+import * as svgpath from 'svgpath';
 
 import "./ui.css";
 import { processSvg } from "./utils";
@@ -23,23 +25,30 @@ onmessage = (event) => {
     paper.setup('');
     console.log(vectorPaths);
     console.log(paper);
+    //
     const pathString : string = vectorPaths.map(path=>path.data).join(' ');
     console.log(pathString);
 
-    const parsedPath = new paper.Path(pathString);
-    console.log(parsedPath);
-    console.log(parsedPath.bounds);
-
-    const {width, height,x, y,center} = parsedPath.bounds;
-    console.log("pathsegs", width, height,x, y,center);
-  
+    let parsedPath = svgpath(pathString);
+    console.log('untouched path data',parsedPath);
+    const bounds = parsedPath.toBox();
+    const width = bounds.maxX-bounds.minX;
+    const height = bounds.maxY-bounds.minY;
     const maxDimension = Math.max(width, height);
-  
-    parsedPath.scale(2 / maxDimension);
-    const {scaledwidth, scaledheight,scaledx, scaledy,scaledcenter} = parsedPath.bounds;
-    console.log('scaled',scaledwidth, scaledheight,scaledx, scaledy,scaledcenter);
-    parsedPath.translate(new paper.Point(-center.x, -center.y));
-    console.log()
+    parsedPath = parsedPath.translate(-width/2,-height/2).scale(2 / maxDimension)   
+    const scaledSVGString = parsedPath.toString();
+    console.log(scaledSVGString);
+    parent.postMessage(
+      {
+        pluginMessage: {
+          type: "sendScaled",
+          nodeId:event.data.pluginMessage.nodeId,
+          object: scaledSVGString
+
+        },
+      },
+      "*"
+    ); //*/
 
   }
   console.log("got this from the plugin code", event.data)
