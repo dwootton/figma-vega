@@ -274,7 +274,7 @@ figma.ui.onmessage = (msg) => {
     
 
     const propertySpecs = [].concat(strokeSpecs,fillSpecs,miscSpecs)
-    console.log(`{
+    const translatedSpecs = `{
       "type": "symbol",
       "interactive": false,
       "encode": {
@@ -290,7 +290,10 @@ figma.ui.onmessage = (msg) => {
           "y": {"value": ${tY}}
         }
       }
-     }`);
+     }`;
+
+     figma.ui.postMessage({specString:translatedSpecs, type:"finishedMarks"})
+
     
   }
 
@@ -318,7 +321,7 @@ function calculateFillSpecs(node:VectorNode){
   if(node.fills){
      //@ts-ignore wrong typings ?
      const color = node.fills[0].color;
-     attributes.push(`"fill": {"value": ${rgbToHex(color.r,color.g,color.b)}}`)
+     attributes.push(`"fill": {"value": "${rgbToHex(color.r,color.g,color.b)}"}`)
  
      if(node.fills[0].opacity){
        attributes.push(`"fillOpacity": {"value": ${node.fills[0].opacity}}`);
@@ -338,7 +341,7 @@ function calculateStrokeSpecs(node : VectorNode){
   if(node.strokes && node.strokes.length > 0){
     //@ts-ignore wrong typings ?
     const color = node.strokes[0].color;
-    attributes.push(`"stroke": {"value": ${rgbToHex(color.r,color.g,color.b)}}`)
+    attributes.push(`"stroke": {"value": "${rgbToHex(color.r,color.g,color.b)}"}`)
 
     if(node.strokes[0].opacity){
       attributes.push(`"strokeOpacity": {"value": ${node.strokes[0].opacity}}`);
@@ -776,7 +779,7 @@ function standardizePathDStrFormat(str) {
     .replace(/ $/g, ""); // trim any tailing space
 }
 
-figma.ui.resize(500, 750);
+figma.ui.resize(600, 350);
 
 // Using relative transformation matrix (gives skewed x value for non-rotated)
 
