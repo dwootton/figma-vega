@@ -320,7 +320,17 @@ function extractStyles(node: VectorNode) {
     strokeWeight: node.strokeWeight,
   };
 }
-
+function shouldNodeBeOutlineStrokes(node:SceneNode){
+  const typesToBeOutlined = ['LINE','TEXT']
+  if( typesToBeOutlined.includes(node.type)){
+    return true
+    
+  } else if(node.type === "VECTOR" &&  "strokeCap" in node.vectorNetwork.vertices[node.vectorNetwork.vertices.length-1]){
+    // if the item has an arrow end, outline stroke because arrow stroke cap cannot be applied :(
+    return true;
+  }
+  return false;
+}
 function vectorize(node: SceneNode): VectorNode {
   // if node is text, combine all vector paths
   let vectorNode = figma.flatten([node]);
@@ -333,10 +343,12 @@ function vectorize(node: SceneNode): VectorNode {
   // lines and vector paths with strokes 
   const outlinedNodes = vectorNode.outlineStroke();
   // if no fills, outline stroke
-  if(outlinedNodes){
+  console.log(vectorNode.fills,vectorNode.strokes);
+
+  if(outlinedNodes && shouldNodeBeOutlineStrokes(node)){
     vectorNode = outlinedNodes;
-    // create vector path for the stroke and add it to nodes. 
   }
+
   console.log('after',vectorNode.vectorPaths)
 
   console.log(vectorNode)
