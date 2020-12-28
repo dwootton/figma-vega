@@ -320,8 +320,8 @@ function calculateFillSpecs(node:VectorNode){
      const color = node.fills[0].color;
      attributes.push(`"fill": {"value": ${rgbToHex(color.r,color.g,color.b)}}`)
  
-     if(node.strokes[0].opacity){
-       attributes.push(`"fillOpacity": {"value": ${node.strokes[0].opacity}}`);
+     if(node.fills[0].opacity){
+       attributes.push(`"fillOpacity": {"value": ${node.fills[0].opacity}}`);
      }
   }
   return attributes;
