@@ -146,7 +146,6 @@ figma.ui.onmessage = (msg) => {
         }
         
         console.log("node value", node);
-        const nodeType = node.type;
         // if nodeType is group
 
         const vectorizedNode = vectorize(node);
@@ -268,6 +267,10 @@ figma.ui.onmessage = (msg) => {
       visaulizationPaddingHeight
     );
 
+    const strokeSpec = calculcateStrokeSpec(vectorizedNode);
+
+    
+
 
     console.log(`{
       "type": "symbol",
@@ -293,6 +296,57 @@ figma.ui.onmessage = (msg) => {
   // keep running, which shows the cancel button at the bottom of the screen.
   //figma.closePlugin();
 };
+function isNotNone(property){
+  return property !== 'NONE';
+}
+
+function calculcateStrokeSpec(node : VectorNode){
+  console.log('in calc spec',node);
+  const names = Object.getOwnPropertyNames(node);
+  console.log('in calc spec names',names);
+  const attributes = [];
+  if(isNotNone(node.strokeCap)){
+
+  }
+  
+  if(node.strokes && node.strokes.length > 0){
+    //@ts-ignore wrong typings 
+    const color = node.strokes[0].color;
+    attributes.push(`"stroke": {"value": ${rgbToHex(color.r,color.g,color.b)}}`)
+
+    if(node.strokes[0].opacity){
+      attributes.push(`"strokeOpacity": {"value": ${node.strokes[0].opacity}}`);
+    }
+
+    if(node.strokeCap === 'ROUND' || node.strokeCap === 'SQUARE'){
+      attributes.push(`"strokeCap": {"value": "round"}`);
+    }
+
+    if(node.strokeWeight){
+      attributes.push(`"strokeWidth": {"value": ${node.strokeWeight}}`);
+    }
+
+    if(node.dashPattern){
+      attributes.push(`"strokeDash": {"value": ${node.dashPattern}}`);
+
+    }
+
+  }
+
+  for (const name of names) {
+    console.log(`${name}: ${node[name]}`);
+  }
+  
+}
+
+function componentToHex(c) {
+  var hex = c.toString(16);
+  return hex.length == 1 ? "0" + hex : hex;
+}
+
+function rgbToHex(r, g, b) {
+  return "#" + componentToHex(r) + componentToHex(g) + componentToHex(b);
+}
 
 function calculatePlacement(node: VectorNode, paddingX: number, paddingY: number) {
   const width = node.width;
@@ -320,17 +374,19 @@ function extractStyles(node: VectorNode) {
     strokeWeight: node.strokeWeight,
   };
 }
+
 function shouldNodeBeOutlineStrokes(node:SceneNode){
-  const typesToBeOutlined = ['LINE','TEXT']
-  if( typesToBeOutlined.includes(node.type)){
-    return true
-    
-  } else if(node.type === "VECTOR" &&  "strokeCap" in node.vectorNetwork.vertices[node.vectorNetwork.vertices.length-1]){
-    // if the item has an arrow end, outline stroke because arrow stroke cap cannot be applied :(
+  console.log('in outline',node);
+  // if the item has an arrow end, outline stroke because arrow stroke cap cannot be applied :(
+  if(node.type === "VECTOR" &&  "strokeCap" in  node.vectorNetwork.vertices[node.vectorNetwork.vertices.length-1] && node.vectorNetwork.vertices[node.vectorNetwork.vertices.length-1].strokeCap !== 'NONE'){
+    return true;
+  } else if("strokeAlign" in node && node.strokeAlign !== "CENTER"){
+    // as vega doesn't support inside or center 
     return true;
   }
   return false;
 }
+
 function vectorize(node: SceneNode): VectorNode {
   // if node is text, combine all vector paths
   let vectorNode = figma.flatten([node]);
@@ -345,7 +401,7 @@ function vectorize(node: SceneNode): VectorNode {
   // if no fills, outline stroke
   console.log(vectorNode.fills,vectorNode.strokes);
 
-  if(outlinedNodes && shouldNodeBeOutlineStrokes(node)){
+  if(outlinedNodes && shouldNodeBeOutlineStrokes(vectorNode)){
     vectorNode = outlinedNodes;
   }
 
