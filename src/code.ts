@@ -83,6 +83,7 @@ figma.ui.onmessage = (msg) => {
     const fills = clone(newAnnotationsLayer.fills);
     fills[0].opacity = 0;
     newAnnotationsLayer.fills = fills;
+    newAnnotationsLayer.clipsContent = false;
 
     newAnnotationsLayer.name = `Annotations Layer - ${id}`;
     // grab width and height
@@ -137,8 +138,9 @@ figma.ui.onmessage = (msg) => {
       while (!nodeStep.done) {
         
         const node = nodeStep.value.clone();
-        // get node type
-        if(node.type === "FRAME"){
+
+        // skip node types 
+        if(node.type === "FRAME" || node.type === "GROUP"){
           nodeStep = nodeIterator.next();
           continue;
         }
@@ -148,7 +150,9 @@ figma.ui.onmessage = (msg) => {
         // if nodeType is group
 
         const vectorizedNode = vectorize(node);
-
+        console.log('fills',vectorizedNode.fills,vectorizedNode.vectorPaths);
+        // might have 2 paths, vectors with 2 path are fine separately. 
+        // 2 paths might have different fills. 
 
         figma.ui.postMessage({data:vectorizedNode.vectorPaths, nodeId:vectorizedNode.id, type:"modifyPath"})
         //const nodeStyles = extractStyles(vectorizedNode); // change to translate styles into vegaspec
@@ -323,9 +327,19 @@ function vectorize(node: SceneNode): VectorNode {
 
   console.log(node.type)
 
-  if(node.type === "LINE" || node.type === "VECTOR"){
-    vectorNode = vectorNode.outlineStroke();
+  // if text, line with stroke
+  console.log('before',vectorNode.vectorPaths)
+
+  // lines and vector paths with strokes 
+  const outlinedNodes = vectorNode.outlineStroke();
+  // if no fills, outline stroke
+  if(outlinedNodes){
+    vectorNode = outlinedNodes;
+    // create vector path for the stroke and add it to nodes. 
   }
+  console.log('after',vectorNode.vectorPaths)
+
+  console.log(vectorNode)
 
   return vectorNode;
 }
