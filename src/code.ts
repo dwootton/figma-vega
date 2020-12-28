@@ -267,11 +267,13 @@ figma.ui.onmessage = (msg) => {
       visaulizationPaddingHeight
     );
 
-    const strokeSpec = calculcateStrokeSpec(vectorizedNode);
+    const strokeSpecs = calculateStrokeSpecs(vectorizedNode);
+    const fillSpecs = calculateFillSpecs(vectorizedNode);
+    const miscSpecs = calculateMiscSpecs(vectorizedNode);
 
     
 
-
+    const propertySpecs = [].concat(strokeSpecs,fillSpecs,miscSpecs)
     console.log(`{
       "type": "symbol",
       "interactive": false,
@@ -279,7 +281,7 @@ figma.ui.onmessage = (msg) => {
         "enter": {
           "shape": {"value": "${msg.object}"},
           "size":{"value":${scale}},
-          "fill":{"value":"black"}
+          ${propertySpecs.join(',')}
         },
         "update": {
           "width":{"value":${width}},
@@ -300,17 +302,41 @@ function isNotNone(property){
   return property !== 'NONE';
 }
 
-function calculcateStrokeSpec(node : VectorNode){
+function calculateMiscSpecs(node:VectorNode){
+  const attributes = [];
+  if(node.opacity){
+     //@ts-ignore wrong typings ?
+     attributes.push(`"opacity": {"value": ${node.opacity}}`)
+ 
+   
+  }
+  return attributes;
+}
+
+function calculateFillSpecs(node:VectorNode){
+  const attributes = [];
+  if(node.fills){
+     //@ts-ignore wrong typings ?
+     const color = node.fills[0].color;
+     attributes.push(`"fill": {"value": ${rgbToHex(color.r,color.g,color.b)}}`)
+ 
+     if(node.strokes[0].opacity){
+       attributes.push(`"fillOpacity": {"value": ${node.strokes[0].opacity}}`);
+     }
+  }
+  return attributes;
+
+}
+
+function calculateStrokeSpecs(node : VectorNode){
   console.log('in calc spec',node);
   const names = Object.getOwnPropertyNames(node);
   console.log('in calc spec names',names);
   const attributes = [];
-  if(isNotNone(node.strokeCap)){
 
-  }
   
   if(node.strokes && node.strokes.length > 0){
-    //@ts-ignore wrong typings 
+    //@ts-ignore wrong typings ?
     const color = node.strokes[0].color;
     attributes.push(`"stroke": {"value": ${rgbToHex(color.r,color.g,color.b)}}`)
 
@@ -328,15 +354,16 @@ function calculcateStrokeSpec(node : VectorNode){
 
     if(node.dashPattern){
       attributes.push(`"strokeDash": {"value": ${node.dashPattern}}`);
+    }
 
+    if(node.strokeMiterLimit){
+      attributes.push(`"strokeMiterLimit": {"value": ${node.strokeMiterLimit}}`);
     }
 
   }
 
-  for (const name of names) {
-    console.log(`${name}: ${node[name]}`);
-  }
-  
+  // return all stroke properties as string
+  return attributes;
 }
 
 function componentToHex(c) {
@@ -363,17 +390,7 @@ function calculatePlacement(node: VectorNode, paddingX: number, paddingY: number
   return { width, height, tX, tY, scale };
 }
 
-function extractStyles(node: VectorNode) {
-  // extract fills, color, strokes, etc
-  return {
-    opacity: node.opacity,
-    effects: node.effects,
-    fills: node.fills,
-    strokes: node.strokes,
 
-    strokeWeight: node.strokeWeight,
-  };
-}
 
 function shouldNodeBeOutlineStrokes(node:SceneNode){
   console.log('in outline',node);
@@ -381,7 +398,7 @@ function shouldNodeBeOutlineStrokes(node:SceneNode){
   if(node.type === "VECTOR" &&  "strokeCap" in  node.vectorNetwork.vertices[node.vectorNetwork.vertices.length-1] && node.vectorNetwork.vertices[node.vectorNetwork.vertices.length-1].strokeCap !== 'NONE'){
     return true;
   } else if("strokeAlign" in node && node.strokeAlign !== "CENTER"){
-    // as vega doesn't support inside or center 
+    // as vega doesn't support inside or center, outline stroke
     return true;
   }
   return false;
