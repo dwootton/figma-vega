@@ -18,6 +18,7 @@ import { Path } from "paper";
 const pluginTypes = Object.freeze({
   modifyPath: "modifyPath",
   finishedMarks: "finishedMarks",
+  startUpViews: "startUpViews"
 });
 
 declare function require(path: string): any;
@@ -53,8 +54,10 @@ onmessage = (event) => {
     );
   } else if (event.data.pluginMessage.type === pluginTypes.finishedMarks) {
     const specString = event.data.pluginMessage.specString;
-    navigator.clipboard.writeText(specString);
+    console.log(event.data.pluginMessage.specString)
     // I can add this to update redux state
+  } else if (event.data.pluginMessage.type === pluginTypes.startUpViews ){
+    const viewsData = event.data.pluginMessage.viewsData;
   }
 
   // read the svg string
@@ -100,13 +103,13 @@ const Editor = () => {
       "*"
     ); //
   }
-  function onCreate() {
+  function onCreate(visualizationId) {
     parent.postMessage(
       {
         pluginMessage: {
           type: "create",
           object: svgString,
-          id: makeID(5),
+          id: visualizationId,
         },
       },
       "*"

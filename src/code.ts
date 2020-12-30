@@ -1,8 +1,7 @@
-import * as React from 'react';
+import * as React from "react";
 //const Paper = require('paper')
 import SVGPath from "./SVGPaths.js";
 //import {createNormalizedPath} from "./helperFunctions";
-
 
 //import {SVGpath, SVGsegs} from './SVGPaths.js';
 // This plugin will open a window to prompt the user to enter a number, and
@@ -20,32 +19,29 @@ const PADDING_HEIGHT_REGEX = /(?<=translate\(\d+,)\d+/;
 const SVG_WIDTH_REGEX = /(?<=width=")\d+/;
 const SVG_HEIGHT_REGEX = /(?<=height=")\d+/;
 
-function traverseToDepth(children)
 /**
  * Utility function to search through all top level nodes of each page in a figma document
  * returns a list of matching figma nodes
- * @param currentPage 
+ * @param currentPage
  * @param searchFunction predicate run on each child node of the page
  */
-function searchTopLevel(root : DocumentNode, searchPredicate : Function){
+function searchTopLevel(root: DocumentNode, searchPredicate: Function) : Array<BaseNode> {
   const searchResults = [];
 
-    const nodeIterator = walkTreeToDepth(root);
-    let nodeStep = nodeIterator.next();
-    while (!nodeStep.done) {
-      
-      const node = nodeStep.value;
+  const nodeIterator = walkTreeToDepth(root, 0, 3);
+  let nodeStep = nodeIterator.next();
+  while (!nodeStep.done) {
+    const node = nodeStep.value;
 
-      if(searchPredicate(node)){
-        searchResults.push(node);
-      }
-      
-      nodeStep = nodeIterator.next();
+    if (searchPredicate(node)) {
+      searchResults.push(node);
     }
-  
+
+    nodeStep = nodeIterator.next();
+  }
+
   // iterate through all child nodes of current page
 
-  
   return searchResults;
 }
 
@@ -54,7 +50,7 @@ function* walkTreeToDepth(node, currentDepth = 1, maxDepth = 2) {
   const { children } = node;
   if (children && currentDepth <= maxDepth) {
     for (const child of children) {
-      yield* walkTreeToDepth(child, currentDepth+1,maxDepth);
+      yield* walkTreeToDepth(child, currentDepth + 1, maxDepth);
     }
   }
 }
@@ -98,7 +94,7 @@ figma.ui.onmessage = (msg) => {
   // One way of distinguishing between different types of messages sent from
   // your HTML page is to use an object with a "type" property like this.
 
-  figma.root.children
+  figma.root.children;
   if (msg.type === "create") {
     const nodes: SceneNode[] = [];
     const id = msg.id;
@@ -125,6 +121,19 @@ figma.ui.onmessage = (msg) => {
       newAnnotationsLayer.resize(width, height);
     }
 
+    
+
+    figma.currentPage.appendChild(visualization);
+
+    nodes.push(visualization);
+
+    figma.currentPage.selection = nodes;
+
+    //
+    const group = figma.group([visualization, newAnnotationsLayer], figma.currentPage);
+    group.name = `Vega View ${msg.id}`;
+    group.setPluginData('type','vegaView');
+
     const paddingWidthMatches = msg.object.match(PADDING_WIDTH_REGEX);
     const paddingHeightMatches = msg.object.match(PADDING_HEIGHT_REGEX);
 
@@ -137,20 +146,10 @@ figma.ui.onmessage = (msg) => {
       const heightString = paddingHeightMatches[0];
       newAnnotationsLayer.setPluginData("vegaPaddingHeight", heightString);
     }
-
-    figma.currentPage.appendChild(visualization);
-
-    nodes.push(visualization);
-
-    figma.currentPage.selection = nodes;
-
-    // 
-    const group = figma.group([visualization,newAnnotationsLayer],figma.currentPage);
-    group.name = `Vega View ${msg.id}`
     figma.viewport.scrollAndZoomIntoView(nodes);
   } else if (msg.type === "fetch") {
     // uses a fetch by id
-    
+
     // find current selection
     //@ts-ignore    //
     // grab annnotations layer,
@@ -158,38 +157,39 @@ figma.ui.onmessage = (msg) => {
     //const newSelection = [figma.flatten(figma.currentPage.selection)];
     const newSelection = figma.currentPage.selection.map((node) => node.clone());
 
-   
-
     console.log("currentSelection", newSelection);
     const marksToAdd = [];
     for (const sceneNode of newSelection) {
       const nodeIterator = walkTree(sceneNode);
       let nodeStep = nodeIterator.next();
       while (!nodeStep.done) {
-        
         const node = nodeStep.value.clone();
 
-        // skip node types 
-        if(node.type === "FRAME" || node.type === "GROUP"){
+        // skip node types
+        if (node.type === "FRAME" || node.type === "GROUP") {
           nodeStep = nodeIterator.next();
           continue;
         }
-        
+
         console.log("node value", node);
         // if nodeType is group
 
         const vectorizedNode = vectorize(node);
-        console.log('fills',vectorizedNode.fills,vectorizedNode.vectorPaths);
-        // might have 2 paths, vectors with 2 path are fine separately. 
-        // 2 paths might have different fills. 
+        console.log("fills", vectorizedNode.fills, vectorizedNode.vectorPaths);
+        // might have 2 paths, vectors with 2 path are fine separately.
+        // 2 paths might have different fills.
 
-        figma.ui.postMessage({data:vectorizedNode.vectorPaths, nodeId:vectorizedNode.id, type:"modifyPath"})
-        
+        figma.ui.postMessage({
+          data: vectorizedNode.vectorPaths,
+          nodeId: vectorizedNode.id,
+          type: "modifyPath",
+        });
+
         nodeStep = nodeIterator.next();
       }
     }
-  } else if(msg.type === "sendScaled"){
-    console.log('in scaledSend!',msg.object);
+  } else if (msg.type === "sendScaled") {
+    console.log("in scaledSend!", msg.object);
     const newSelection = figma.currentPage.selection;
 
     const visaulizationPaddingWidth = Number(newSelection[0].getPluginData("vegaPaddingWidth"));
@@ -198,8 +198,8 @@ figma.ui.onmessage = (msg) => {
 
     // lines and vector
 
-    if(vectorizedNode.type !== 'VECTOR'){
-      return 
+    if (vectorizedNode.type !== "VECTOR") {
+      return;
     }
 
     const { width, height, tX, tY, scale } = calculatePlacement(
@@ -212,9 +212,7 @@ figma.ui.onmessage = (msg) => {
     const fillSpecs = calculateFillSpecs(vectorizedNode);
     const miscSpecs = calculateMiscSpecs(vectorizedNode);
 
-    
-
-    const propertySpecs = [].concat(strokeSpecs,fillSpecs,miscSpecs)
+    const propertySpecs = [].concat(strokeSpecs, fillSpecs, miscSpecs);
     const translatedSpecs = `{
       "type": "symbol",
       "interactive": false,
@@ -222,7 +220,7 @@ figma.ui.onmessage = (msg) => {
         "enter": {
           "shape": {"value": "${msg.object}"},
           "size":{"value":${scale}},
-          ${propertySpecs.join(',')}
+          ${propertySpecs.join(",")}
         },
         "update": {
           "width":{"value":${width}},
@@ -233,79 +231,89 @@ figma.ui.onmessage = (msg) => {
       }
      }`;
 
-     figma.ui.postMessage({specString:translatedSpecs, type:"finishedMarks"})
-
-    
-  } else if(msg.type === 'startUp'){
+    figma.ui.postMessage({ specString: translatedSpecs, type: "finishedMarks" });
+  } else if (msg.type === "startUp") {
     // scan through document to find all nodes with plugin data type matching vega view
+    const currentViews = searchTopLevel(figma.root,(node : BaseNode)=>node.getPluginData('type') === 'vegaView');
+    const viewsData = [];
+    for(const view of currentViews){
+      const viewData = extractVegaViewData(view);
+      viewsData.push(viewData);
+    }
+    figma.ui.postMessage({ viewsData: viewsData, type: "startUpViews" });
   }
 
   // Make sure to close the plugin when you're done. Otherwise the plugin will
   // keep running, which shows the cancel button at the bottom of the screen.
   //figma.closePlugin();
 };
-function isNotNone(property){
-  return property !== 'NONE';
+
+function extractVegaViewData(node : BaseNode){
+  const propertiesToExtract = ['visualizationSpec','annotationSpec','vegaPaddingWidth','vegaPaddingHeight','annotationsId','visualizationId'];
+  const extractedData = {};
+  for(const property in propertiesToExtract){
+    const data = node.getPluginData(property);
+    extractedData[property] = data;
+  }
+  return extractedData;
+}
+function isNotNone(property) {
+  return property !== "NONE";
 }
 
-function calculateMiscSpecs(node:VectorNode){
+function calculateMiscSpecs(node: VectorNode) {
   const attributes = [];
-  if(node.opacity){
-     //@ts-ignore wrong typings ?
-     attributes.push(`"opacity": {"value": ${node.opacity}}`)
- 
-   
+  if (node.opacity) {
+    //@ts-ignore wrong typings ?
+    attributes.push(`"opacity": {"value": ${node.opacity}}`);
   }
   return attributes;
 }
 
-function calculateFillSpecs(node:VectorNode){
+function calculateFillSpecs(node: VectorNode) {
   const attributes = [];
-  if(node.fills){
-     //@ts-ignore wrong typings ?
-     const color = node.fills[0].color;
-     attributes.push(`"fill": {"value": "${rgbToHex(color.r,color.g,color.b)}"}`)
- 
-     if(node.fills[0].opacity){
-       attributes.push(`"fillOpacity": {"value": ${node.fills[0].opacity}}`);
-     }
+  if (node.fills) {
+    //@ts-ignore wrong typings ?
+    const color = node.fills[0].color;
+    attributes.push(`"fill": {"value": "${rgbToHex(color.r, color.g, color.b)}"}`);
+
+    if (node.fills[0].opacity) {
+      attributes.push(`"fillOpacity": {"value": ${node.fills[0].opacity}}`);
+    }
   }
   return attributes;
-
 }
 
-function calculateStrokeSpecs(node : VectorNode){
-  console.log('in calc spec',node);
+function calculateStrokeSpecs(node: VectorNode) {
+  console.log("in calc spec", node);
   const names = Object.getOwnPropertyNames(node);
-  console.log('in calc spec names',names);
+  console.log("in calc spec names", names);
   const attributes = [];
 
-  
-  if(node.strokes && node.strokes.length > 0){
+  if (node.strokes && node.strokes.length > 0) {
     //@ts-ignore wrong typings ?
     const color = node.strokes[0].color;
-    attributes.push(`"stroke": {"value": "${rgbToHex(color.r,color.g,color.b)}"}`)
+    attributes.push(`"stroke": {"value": "${rgbToHex(color.r, color.g, color.b)}"}`);
 
-    if(node.strokes[0].opacity){
+    if (node.strokes[0].opacity) {
       attributes.push(`"strokeOpacity": {"value": ${node.strokes[0].opacity}}`);
     }
 
-    if(node.strokeCap === 'ROUND' || node.strokeCap === 'SQUARE'){
+    if (node.strokeCap === "ROUND" || node.strokeCap === "SQUARE") {
       attributes.push(`"strokeCap": {"value": "round"}`);
     }
 
-    if(node.strokeWeight){
+    if (node.strokeWeight) {
       attributes.push(`"strokeWidth": {"value": ${node.strokeWeight}}`);
     }
 
-    if(node.dashPattern){
+    if (node.dashPattern) {
       attributes.push(`"strokeDash": {"value": ${node.dashPattern}}`);
     }
 
-    if(node.strokeMiterLimit){
+    if (node.strokeMiterLimit) {
       attributes.push(`"strokeMiterLimit": {"value": ${node.strokeMiterLimit}}`);
     }
-
   }
 
   // return all stroke properties as string
@@ -336,14 +344,16 @@ function calculatePlacement(node: VectorNode, paddingX: number, paddingY: number
   return { width, height, tX, tY, scale };
 }
 
-
-
-function shouldNodeBeOutlineStrokes(node:SceneNode){
-  console.log('in outline',node);
+function shouldNodeBeOutlineStrokes(node: SceneNode) {
+  console.log("in outline", node);
   // if the item has an arrow end, outline stroke because arrow stroke cap cannot be applied :(
-  if(node.type === "VECTOR" &&  "strokeCap" in  node.vectorNetwork.vertices[node.vectorNetwork.vertices.length-1] && node.vectorNetwork.vertices[node.vectorNetwork.vertices.length-1].strokeCap !== 'NONE'){
+  if (
+    node.type === "VECTOR" &&
+    "strokeCap" in node.vectorNetwork.vertices[node.vectorNetwork.vertices.length - 1] &&
+    node.vectorNetwork.vertices[node.vectorNetwork.vertices.length - 1].strokeCap !== "NONE"
+  ) {
     return true;
-  } else if("strokeAlign" in node && node.strokeAlign !== "CENTER"){
+  } else if ("strokeAlign" in node && node.strokeAlign !== "CENTER") {
     // as vega doesn't support inside or center, outline stroke
     return true;
   }
@@ -354,23 +364,23 @@ function vectorize(node: SceneNode): VectorNode {
   // if node is text, combine all vector paths
   let vectorNode = figma.flatten([node]);
 
-  console.log(node.type)
+  console.log(node.type);
 
   // if text, line with stroke
-  console.log('before',vectorNode.vectorPaths)
+  console.log("before", vectorNode.vectorPaths);
 
-  // lines and vector paths with strokes 
+  // lines and vector paths with strokes
   const outlinedNodes = vectorNode.outlineStroke();
   // if no fills, outline stroke
-  console.log(vectorNode.fills,vectorNode.strokes);
+  console.log(vectorNode.fills, vectorNode.strokes);
 
-  if(outlinedNodes && shouldNodeBeOutlineStrokes(vectorNode)){
+  if (outlinedNodes && shouldNodeBeOutlineStrokes(vectorNode)) {
     vectorNode = outlinedNodes;
   }
 
-  console.log('after',vectorNode.vectorPaths)
+  console.log("after", vectorNode.vectorPaths);
 
-  console.log(vectorNode)
+  console.log(vectorNode);
 
   return vectorNode;
 }
