@@ -1,6 +1,9 @@
 import * as React from "react";
 import * as ReactDOM from "react-dom";
 import * as paper from "paper";
+import * as reactRedux from "react-redux";
+import store from "./redux/store";
+
 //@ts-ignore
 import * as svgpath from "svgpath";
 
@@ -18,6 +21,7 @@ const pluginTypes = Object.freeze({
 });
 
 declare function require(path: string): any;
+
 onmessage = (event) => {
   if (event.data.pluginMessage.type === pluginTypes.modifyPath) {
     const vectorPaths = event.data.pluginMessage.data;
@@ -50,6 +54,7 @@ onmessage = (event) => {
   } else if (event.data.pluginMessage.type === pluginTypes.finishedMarks) {
     const specString = event.data.pluginMessage.specString;
     navigator.clipboard.writeText(specString);
+    // I can add this to update redux state
   }
 
   // read the svg string
@@ -57,8 +62,29 @@ onmessage = (event) => {
   // translate it to the middle
   //
 };
+const channel = new MessageChannel();
 
 const App = () => {
+  // on load, send message to document to find all vega nodes
+
+  // return all nodes + annotation layers
+
+  return <Editor />;
+};
+
+// central store created for each "created visualization"
+//
+function makeID(length) {
+  var result = "";
+  var characters = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789";
+  var charactersLength = characters.length;
+  for (var i = 0; i < length; i++) {
+    result += characters.charAt(Math.floor(Math.random() * charactersLength));
+  }
+  return result;
+}
+
+const Editor = () => {
   const [svgString, setSvgString] = React.useState("");
   const [spec, setSpec] = React.useState({});
   const [message, setMessage] = React.useState("");
@@ -80,6 +106,7 @@ const App = () => {
         pluginMessage: {
           type: "create",
           object: svgString,
+          id: makeID(5),
         },
       },
       "*"
@@ -131,17 +158,17 @@ const App = () => {
         <VegaSpec onCreate={onCreate} onFetch={onFetch} onPreview={onPreview}></VegaSpec>
         <Visualization errorMessage={message}></Visualization>
       </div>
-
     </div>
   );
 };
+
 const VegaSpec = ({ onCreate, onFetch, onPreview }) => {
   return (
-    <div style={{'width':'100%','height':'250px'}}>
+    <div style={{ width: "100%", height: "250px" }}>
       <textarea
-      placeholder='Copy Vega Spec here.'
+        placeholder='Copy Vega Spec here.'
         id='vegaSpec'
-        style={{ border:'none', width: "100%", height: "100%", resize:"none" }}
+        style={{ border: "none", width: "100%", height: "100%", resize: "none" }}
         onChange={onPreview}></textarea>
       <button id='create' onClick={onCreate}>
         Create
@@ -152,9 +179,10 @@ const VegaSpec = ({ onCreate, onFetch, onPreview }) => {
     </div>
   );
 };
+
 const Visualization = ({ errorMessage }) => {
   return (
-    <div style={{width:'100%',height:'250px'}}>
+    <div style={{ width: "100%", height: "250px" }}>
       {errorMessage && (
         <div style={{ color: "#D8000C", backgroundColor: "#FFBABA", border: 0, padding: "10px" }}>
           {errorMessage}
@@ -162,7 +190,7 @@ const Visualization = ({ errorMessage }) => {
         </div>
       )}
 
-        <image id='vis' style={{ width: "250px"}}></image>
+      <image id='vis' style={{ width: "250px" }}></image>
     </div>
   );
 };

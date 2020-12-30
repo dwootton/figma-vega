@@ -20,15 +20,45 @@ const PADDING_HEIGHT_REGEX = /(?<=translate\(\d+,)\d+/;
 const SVG_WIDTH_REGEX = /(?<=width=")\d+/;
 const SVG_HEIGHT_REGEX = /(?<=height=")\d+/;
 
-function makeid(length) {
-  var result = "";
-  var characters = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789";
-  var charactersLength = characters.length;
-  for (var i = 0; i < length; i++) {
-    result += characters.charAt(Math.floor(Math.random() * charactersLength));
-  }
-  return result;
+function traverseToDepth(children)
+/**
+ * Utility function to search through all top level nodes of each page in a figma document
+ * returns a list of matching figma nodes
+ * @param currentPage 
+ * @param searchFunction predicate run on each child node of the page
+ */
+function searchTopLevel(root : DocumentNode, searchPredicate : Function){
+  const searchResults = [];
+
+    const nodeIterator = walkTreeToDepth(root);
+    let nodeStep = nodeIterator.next();
+    while (!nodeStep.done) {
+      
+      const node = nodeStep.value;
+
+      if(searchPredicate(node)){
+        searchResults.push(node);
+      }
+      
+      nodeStep = nodeIterator.next();
+    }
+  
+  // iterate through all child nodes of current page
+
+  
+  return searchResults;
 }
+
+function* walkTreeToDepth(node, currentDepth = 1, maxDepth = 2) {
+  yield node;
+  const { children } = node;
+  if (children && currentDepth <= maxDepth) {
+    for (const child of children) {
+      yield* walkTreeToDepth(child, currentDepth+1,maxDepth);
+    }
+  }
+}
+
 function clone(val) {
   const type = typeof val;
   if (val === null) {
@@ -67,15 +97,12 @@ function* walkTree(node) {
 figma.ui.onmessage = (msg) => {
   // One way of distinguishing between different types of messages sent from
   // your HTML page is to use an object with a "type" property like this.
-  //console.log(SVGpath, SVGsegs,new SVGsegs("M 0.5 -0.5 l 0 1 -1 0 0 -1 z"));
 
-  console.log(SVGPath);
-
+  figma.root.children
   if (msg.type === "create") {
     const nodes: SceneNode[] = [];
-    const id = makeid(5);
+    const id = msg.id;
     console.log(msg);
-
     const newAnnotationsLayer = figma.createFrame();
     const visualization = figma.createNodeFromSvg(msg.object);
     visualization.name = `Visualization - ${id}`;
@@ -117,10 +144,13 @@ figma.ui.onmessage = (msg) => {
 
     figma.currentPage.selection = nodes;
 
+    // 
+    const group = figma.group([visualization,newAnnotationsLayer],figma.currentPage);
+    group.name = `Vega View ${msg.id}`
     figma.viewport.scrollAndZoomIntoView(nodes);
-  }
-
-  if (msg.type === "fetch") {
+  } else if (msg.type === "fetch") {
+    // uses a fetch by id
+    
     // find current selection
     //@ts-ignore    //
     // grab annnotations layer,
@@ -154,100 +184,11 @@ figma.ui.onmessage = (msg) => {
         // 2 paths might have different fills. 
 
         figma.ui.postMessage({data:vectorizedNode.vectorPaths, nodeId:vectorizedNode.id, type:"modifyPath"})
-        //const nodeStyles = extractStyles(vectorizedNode); // change to translate styles into vegaspec
-        /*const svgPath = createNormalizedPath(vectorizedNode);
-
-        const { width, height, tX, tY, scale } = calculatePlacement(
-          vectorizedNode,
-          visaulizationPaddingWidth,
-          visaulizationPaddingHeight
-        );
-
-        console.log(
-          vectorizedNode.x,
-          vectorizedNode.y,
-          vectorizedNode.width,
-          vectorizedNode.height,
-          node.vectorPaths
-        );
-
-        console.log(`{
-          "type": "symbol",
-          "interactive": false,
-          "encode": {
-            "enter": {
-              "shape": {"value": "${svgPath}"},
-              "size":{"value":${scale}},
-              "fill":{"value":"black"}
-            },
-            "update": {
-              "width":{"value":${width}},
-              "height":{"value":${height}},
-              "x": {"value": ${tX}},
-              "y": {"value": ${tY}}
-            }
-          }
-         }`);*/
-
-        //
-        /*
-        const 
-        console.log('node typw',node.type);
-
-
-
-        // Get scene node type
-        // if text
-        // text make svg for all elements
-
-        // transform to vector
-
-        // process path
-
-
         
-
-        
-
-        const pX = 15; // current Vega padding
-        const pY = 5;
-
-        // rotation throws it off!
-
-        //console.log("x", (1 / 2) * maxDimension, x, pX, 0, rot);
-        //console.log("y", (1 / 2) * maxDimension, y, pY, 0);
-
-        
-
-        //
-        const vals = pathStrings.map((path) => {
-          return `{
-          "type": "symbol",
-          "interactive": false,
-          "encode": {
-            "enter": {
-              "angle":{"value":${0}},
-              "shape": {"value": "${path}"},
-              "size":{"value":${vectorScale}},
-              "fill":{"value":"black"}
-            },
-            "update": {
-              "width":{"value":${width}},
-              "height":{"value":${height}},
-              "x": {"value": ${tX}},
-              "y": {"value": ${tY}}
-            }
-          }
-         }`;
-        });
-
-        console.log(JSON.stringify(vals[0]).replace(/\\n/g, "").replace(/\\/g, ""));*/
         nodeStep = nodeIterator.next();
       }
     }
-  }
-
-  if(msg.type === "sendScaled"){
+  } else if(msg.type === "sendScaled"){
     console.log('in scaledSend!',msg.object);
     const newSelection = figma.currentPage.selection;
 
@@ -295,6 +236,8 @@ figma.ui.onmessage = (msg) => {
      figma.ui.postMessage({specString:translatedSpecs, type:"finishedMarks"})
 
     
+  } else if(msg.type === 'startUp'){
+    // scan through document to find all nodes with plugin data type matching vega view
   }
 
   // Make sure to close the plugin when you're done. Otherwise the plugin will
