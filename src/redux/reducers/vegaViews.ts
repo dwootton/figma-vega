@@ -14,8 +14,8 @@ interface IView {
     annotationSpec: string; // stringified JSON specification for annotations
     vegaPaddingWidth:string; // width of padding inherent in vega visualization 
     vegaPaddingHeight:string;// height of padding inherent in vega visualization 
-    annotationsId:string; // property for identifying annotations on figma scenegraph
-    visualizationId:string; // property for identifying annotations on figma scenegraph
+    annotationsNodeId:string; // property for identifying annotations on figma scenegraph
+    visualizationNodeId:string; // property for identifying annotations on figma scenegraph
 }
 
 export default function(state = initialState, action) {
@@ -31,12 +31,12 @@ export default function(state = initialState, action) {
       };
     }
     case ALTER_VEGA_VIEW: {
-      const { viewId, alteredViewProperties } = action.payload;
+      const { viewId, alteredView } = action.payload;
       const currentViewsCopy = [...state.views];
       const viewIndex = currentViewsCopy.findIndex(view=>view.viewId = viewId);
       if(viewIndex > -1){
         const copyValue = Object.assign({},currentViewsCopy[viewIndex])
-        currentViewsCopy[viewIndex] = Object.assign(copyValue,alteredViewProperties);
+        currentViewsCopy[viewIndex] = Object.assign(copyValue,alteredView);
       }
 
       return {
