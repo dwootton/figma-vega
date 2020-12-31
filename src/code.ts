@@ -156,7 +156,12 @@ figma.ui.onmessage = (msg) => {
       group.setPluginData("vegaPaddingHeight", heightString);
     }
 
-    figma.ui.postMessage({ specString: translatedSpecs, type: "finishedMarks" });
+    figma.ui.postMessage({
+      viewNodeId: group.id,
+      visualizationNodeId: visualization.id,
+      annotationsNodeId: newAnnotationsLayer.id,
+      type: "finishedCreate",
+    });
   } else if (msg.type === "fetch") {
     // uses a fetch by id
 
@@ -200,7 +205,6 @@ figma.ui.onmessage = (msg) => {
     }
   } else if (msg.type === "sendScaled") {
     console.log("in scaledSend!", msg.object);
-    const newSelection = figma.currentPage.selection;
     const viewNode = figma.getNodeById(msg.viewNodeId);
     if (viewNode) {
       const visaulizationPaddingWidth = Number(viewNode.getPluginData("vegaPaddingWidth"));

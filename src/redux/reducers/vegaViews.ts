@@ -1,8 +1,22 @@
 import { ADD_VEGA_VIEW, ALTER_VEGA_VIEW ,DELETE_VEGA_VIEW} from "./../actionTypes";
 
-const initialState = {
+const initialState : IViewStore = {
   views: []
 };
+
+interface IViewStore {
+    views: IView[];
+}
+interface IView {
+    viewId: string; // internal property for identifying ui
+    viewNodeId: string; // property for identifying on figma scenegraph
+    visualizationSpec: string; // stringified JSON specification of Vega Vis
+    annotationSpec: string; // stringified JSON specification for annotations
+    vegaPaddingWidth:string; // width of padding inherent in vega visualization 
+    vegaPaddingHeight:string;// height of padding inherent in vega visualization 
+    annotationsId:string; // property for identifying annotations on figma scenegraph
+    visualizationId:string; // property for identifying annotations on figma scenegraph
+}
 
 export default function(state = initialState, action) {
   switch (action.type) {
@@ -11,17 +25,18 @@ export default function(state = initialState, action) {
       return {
         ...state,
         views: [...state.views, 
-            action.viewData
+            action.payload.viewData
         ]
        
       };
     }
     case ALTER_VEGA_VIEW: {
-      const { viewId, alteredView } = action.payload;
+      const { viewId, alteredViewProperties } = action.payload;
       const currentViewsCopy = [...state.views];
       const viewIndex = currentViewsCopy.findIndex(view=>view.viewId = viewId);
       if(viewIndex > -1){
-        currentViewsCopy[viewIndex] = alteredView
+        const copyValue = Object.assign({},currentViewsCopy[viewIndex])
+        currentViewsCopy[viewIndex] = Object.assign(copyValue,alteredViewProperties);
       }
 
       return {

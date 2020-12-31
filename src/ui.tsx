@@ -3,7 +3,7 @@ import * as ReactDOM from "react-dom";
 import * as paper from "paper";
 import * as reactRedux from "react-redux";
 import store from "./redux/store";
-import {} from './redux/actions';
+import {} from "./redux/actions";
 import { Provider, connect } from "react-redux";
 
 //@ts-ignore
@@ -22,6 +22,7 @@ const pluginTypes = Object.freeze({
   modifyPath: "modifyPath",
   finishedMarks: "finishedMarks",
   startUpViews: "startUpViews",
+  finishedCreate: "finishedCreate",
 });
 
 declare function require(path: string): any;
@@ -65,7 +66,7 @@ onmessage = (event) => {
       {
         pluginMessage: {
           type: "sendScaled",
-          viewNodeId:event.data.pluginMessage.viewNodeId,
+          viewNodeId: event.data.pluginMessage.viewNodeId,
           nodeId: event.data.pluginMessage.nodeId,
           object: scaledSVGString,
         },
@@ -80,7 +81,7 @@ onmessage = (event) => {
     const viewsData = event.data.pluginMessage.viewsData;
     console.log("views data", viewsData);
     for (const view of viewsData) {
-      const addAction = { type: "ADD_VEGA_VIEW", viewData: view };
+      const addAction = { type: "ADD_VEGA_VIEW", payload: { viewData: view } };
 
       store.dispatch(addAction);
     }
@@ -95,6 +96,21 @@ onmessage = (event) => {
     ];
 
     // add views data to redux store.
+  } else if (event.data.pluginMessage.type === pluginTypes.finishedCreate) {
+    // add the figma node id for the vega view
+    const viewNodeId = event.data.pluginMessage.viewNodeId;
+    const annotationsNodeId = event.data.pluginMessage.annotationsNodeId;
+    const visualizationNodeId = event.data.pluginMessage.visualizationNodeId;
+
+    const viewId = event.data.pluginMessage.viewId;
+
+    console.log("created Node Id", viewId, viewNodeId);
+    const alterActions = {
+      type: "ALTER_VEGA_VIEW",
+      payload: { viewId: viewId, view: { viewNodeId: viewNodeId, annotationsNodeId: annotationsNodeId,visualizationNodeId:visualizationNodeId} },
+    };
+
+    store.dispatch(alterActions);
   }
 
   // read the svg string
@@ -103,63 +119,59 @@ onmessage = (event) => {
   //
 };
 const channel = new MessageChannel();
-const VIEW_ENUM = Object.freeze({'OVERVIEW':'OVERVIEW','VIEW':'VIEW'})
-const AppWithRedux = ({views}) => {
+const VIEW_ENUM = Object.freeze({ OVERVIEW: "OVERVIEW", VIEW: "VIEW" });
+const AppWithRedux = ({ views }) => {
   // on load, send message to document to find all vega nodes
-  const [selectedViewId,setSelectedViewId] = React.useState();
-  function onBack(){
+  const [selectedViewId, setSelectedViewId] = React.useState();
+  function onBack() {
     setSelectedViewId(null);
   }
-  function onViewSelect(viewId){
+  function onViewSelect(viewId) {
     setSelectedViewId(viewId);
   }
 
-  function onEditView(id, alteredView){
-
-  }
+  function onEditView(id, alteredView) {}
 
   // fetch vega views from the scenegraph and populate redux store.
-  React.useEffect(()=>{
+  React.useEffect(() => {
     parent.postMessage(
       {
         pluginMessage: {
-          type: "startUp"
+          type: "startUp",
         },
       },
       "*"
-    ); 
-  },[])
+    );
+  }, []);
 
-  return <div>
-    {!selectedViewId && <Overview onViewSelect={onViewSelect} views={views}></Overview>}
-    {selectedViewId && <Editor onBack={onBack} onEditView={onEditView} view={views.find(view=>view.viewId === selectedViewId)}></Editor>}
-  </div>
-  }
+  return (
+    <div>
+      {!selectedViewId && <Overview onViewSelect={onViewSelect} views={views}></Overview>}
+      {selectedViewId && (
+        <Editor
+          onBack={onBack}
+          onEditView={onEditView}
+          view={views.find((view) => view.viewId === selectedViewId)}></Editor>
+      )}
+    </div>
+  );
+};
 
-const OverviewPresent = ({onViewSelect, views}) => {
-  return <div>
-
-  </div>
-}
+const OverviewPresent = ({ onViewSelect, views }) => {
+  return <div></div>;
+};
 
 // export default Todo;
-const Overview = connect(
-  null,
-  { toggleTodo }
-)(OverviewPresent);
+const Overview = connect(null, { toggleTodo })(OverviewPresent);
 
-  // return all nodes + annotation layers
+// return all nodes + annotation layers
 
 const mapStateToProps = (state) => {
-  const  views  = state.views;
+  const views = state.views;
   return { views };
-
 };
 
 const App = connect(mapStateToProps)(AppWithRedux);
-
-
-
 
 const Editor = ({ view, onBack }) => {
   console.log("dywootto views", view);
@@ -244,8 +256,6 @@ const Editor = ({ view, onBack }) => {
     </div>
   );
 };
-
-
 
 const VegaSpec = ({ onCreate, onFetch, onPreview }) => {
   return (
