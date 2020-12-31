@@ -1,43 +1,47 @@
-import { ADD_VEGA_VIEW, ALTER_VEGA_VIEW ,DELETE_VEGA_VIEW} from "../actionTypes";
-
-
+import { ADD_VEGA_VIEW, ALTER_VEGA_VIEW ,DELETE_VEGA_VIEW} from "./../actionTypes";
 
 const initialState = {
-  allIds: [],
-  byIds: {}
+  views: []
 };
 
 export default function(state = initialState, action) {
   switch (action.type) {
     case ADD_VEGA_VIEW: {
-      const { id, content } = action.payload;
+
       return {
         ...state,
-        allIds: [...state.allIds, id],
-        byIds: {
-          ...state.byIds,
-          [id]: {
-            content,
-            completed: false
-          }
-        }
+        views: [...state.views, 
+            action.viewData
+        ]
+       
       };
     }
     case ALTER_VEGA_VIEW: {
-      const { id } = action.payload;
+      const { viewId, alteredView } = action.payload;
+      const currentViewsCopy = [...state.views];
+      const viewIndex = currentViewsCopy.findIndex(view=>view.viewId = viewId);
+      if(viewIndex > -1){
+        currentViewsCopy[viewIndex] = alteredView
+      }
+
       return {
         ...state,
-        byIds: {
-          ...state.byIds,
-          [id]: {
-            ...state.byIds[id],
-            completed: !state.byIds[id].completed
-          }
-        }
+        views: currentViewsCopy
       };
     }
     case DELETE_VEGA_VIEW: {
-        
+        const { viewId } = action.payload;
+        const currentViewsCopy = [...state.views];
+        const viewIndex = currentViewsCopy.findIndex(view=>view.viewId = viewId);
+        if(viewIndex > -1){
+          currentViewsCopy.splice(viewIndex, 1);
+
+        }
+        return {
+            ...state,
+            views: currentViewsCopy
+          };
+  
     }
     default:
       return state;

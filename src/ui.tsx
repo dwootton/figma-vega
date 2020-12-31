@@ -3,10 +3,13 @@ import * as ReactDOM from "react-dom";
 import * as paper from "paper";
 import * as reactRedux from "react-redux";
 import store from "./redux/store";
+import {} from './redux/actions';
+import { Provider, connect } from "react-redux";
 
 //@ts-ignore
 import * as svgpath from "svgpath";
-
+//@ts-ignore
+import * as pathUtils from "svg-path-utils";
 import "./ui.css";
 import { processSvg } from "./utils";
 //@ts-ignore
@@ -18,7 +21,7 @@ import { Path } from "paper";
 const pluginTypes = Object.freeze({
   modifyPath: "modifyPath",
   finishedMarks: "finishedMarks",
-  startUpViews: "startUpViews"
+  startUpViews: "startUpViews",
 });
 
 declare function require(path: string): any;
@@ -26,11 +29,27 @@ declare function require(path: string): any;
 onmessage = (event) => {
   if (event.data.pluginMessage.type === pluginTypes.modifyPath) {
     const vectorPaths = event.data.pluginMessage.data;
-    paper.setup("");
-    console.log(vectorPaths);
-    console.log(paper);
+    console.log("vector paths", vectorPaths);
+
+    let pathString: string = vectorPaths.map((path) => path.data).join(" ");
+    // go through, break up by Z
+    // invert every other path
+    // join.
     //
-    const pathString: string = vectorPaths.map((path) => path.data).join(" ");
+
+    // if a object must have been outlined, invert its path for appropriate styling despite "even-odd " fill rule
+    if (event.data.pluginMessage.outlinedStroke) {
+      let utils = new pathUtils.SVGPathUtils();
+      const paths = pathString.split(/[zZ]/).filter((path) => path !== "");
+
+      // for every other path, inverse it
+      for (let i = 0; i < paths.length; i = i + 2) {
+        paths[i] = utils.inversePath(paths[i]);
+      }
+
+      pathString = paths.join("Z ");
+    }
+
     console.log(pathString);
 
     let parsedPath = svgpath(pathString);
@@ -46,6 +65,7 @@ onmessage = (event) => {
       {
         pluginMessage: {
           type: "sendScaled",
+          viewNodeId:event.data.pluginMessage.viewNodeId,
           nodeId: event.data.pluginMessage.nodeId,
           object: scaledSVGString,
         },
@@ -54,10 +74,27 @@ onmessage = (event) => {
     );
   } else if (event.data.pluginMessage.type === pluginTypes.finishedMarks) {
     const specString = event.data.pluginMessage.specString;
-    console.log(event.data.pluginMessage.specString)
+    console.log(event.data.pluginMessage.specString);
     // I can add this to update redux state
-  } else if (event.data.pluginMessage.type === pluginTypes.startUpViews ){
+  } else if (event.data.pluginMessage.type === pluginTypes.startUpViews) {
     const viewsData = event.data.pluginMessage.viewsData;
+    console.log("views data", viewsData);
+    for (const view of viewsData) {
+      const addAction = { type: "ADD_VEGA_VIEW", viewData: view };
+
+      store.dispatch(addAction);
+    }
+
+    const propertiesToExtract = [
+      "visualizationSpec",
+      "annotationSpec",
+      "vegaPaddingWidth",
+      "vegaPaddingHeight",
+      "annotationsId",
+      "visualizationId",
+    ];
+
+    // add views data to redux store.
   }
 
   // read the svg string
@@ -66,28 +103,66 @@ onmessage = (event) => {
   //
 };
 const channel = new MessageChannel();
-
-const App = () => {
+const VIEW_ENUM = Object.freeze({'OVERVIEW':'OVERVIEW','VIEW':'VIEW'})
+const AppWithRedux = ({views}) => {
   // on load, send message to document to find all vega nodes
+  const [selectedViewId,setSelectedViewId] = React.useState();
+  function onBack(){
+    setSelectedViewId(null);
+  }
+  function onViewSelect(viewId){
+    setSelectedViewId(viewId);
+  }
+
+  function onEditView(id, alteredView){
+
+  }
+
+  // fetch vega views from the scenegraph and populate redux store.
+  React.useEffect(()=>{
+    parent.postMessage(
+      {
+        pluginMessage: {
+          type: "startUp"
+        },
+      },
+      "*"
+    ); 
+  },[])
+
+  return <div>
+    {!selectedViewId && <Overview onViewSelect={onViewSelect} views={views}></Overview>}
+    {selectedViewId && <Editor onBack={onBack} onEditView={onEditView} view={views.find(view=>view.viewId === selectedViewId)}></Editor>}
+  </div>
+  }
+
+const OverviewPresent = ({onViewSelect, views}) => {
+  return <div>
+
+  </div>
+}
+
+// export default Todo;
+const Overview = connect(
+  null,
+  { toggleTodo }
+)(OverviewPresent);
 
   // return all nodes + annotation layers
 
-  return <Editor />;
+const mapStateToProps = (state) => {
+  const  views  = state.views;
+  return { views };
+
 };
 
-// central store created for each "created visualization"
-//
-function makeID(length) {
-  var result = "";
-  var characters = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789";
-  var charactersLength = characters.length;
-  for (var i = 0; i < length; i++) {
-    result += characters.charAt(Math.floor(Math.random() * charactersLength));
-  }
-  return result;
-}
+const App = connect(mapStateToProps)(AppWithRedux);
 
-const Editor = () => {
+
+
+
+const Editor = ({ view, onBack }) => {
+  console.log("dywootto views", view);
   const [svgString, setSvgString] = React.useState("");
   const [spec, setSpec] = React.useState({});
   const [message, setMessage] = React.useState("");
@@ -97,6 +172,7 @@ const Editor = () => {
       {
         pluginMessage: {
           type: "fetch",
+          viewId: view.viewId,
           object: svgString,
         },
       },
@@ -108,6 +184,7 @@ const Editor = () => {
       {
         pluginMessage: {
           type: "create",
+          vegaSpec: JSON.stringify(spec),
           object: svgString,
           id: visualizationId,
         },
@@ -158,12 +235,17 @@ const Editor = () => {
       <h2>VegaFi</h2>
 
       <div style={{ display: "flex" }}>
-        <VegaSpec onCreate={onCreate} onFetch={onFetch} onPreview={onPreview}></VegaSpec>
+        <VegaSpec
+          onCreate={() => onCreate("312798")}
+          onFetch={onFetch}
+          onPreview={onPreview}></VegaSpec>
         <Visualization errorMessage={message}></Visualization>
       </div>
     </div>
   );
 };
+
+
 
 const VegaSpec = ({ onCreate, onFetch, onPreview }) => {
   return (
@@ -198,4 +280,10 @@ const Visualization = ({ errorMessage }) => {
   );
 };
 
-ReactDOM.render(<App />, document.getElementById("react-page"));
+ReactDOM.render(
+  <Provider store={store}>
+    {" "}
+    <App />{" "}
+  </Provider>,
+  document.getElementById("react-page")
+);
