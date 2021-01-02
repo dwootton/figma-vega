@@ -1,23 +1,23 @@
 import * as React from "react";
 import * as ReactDOM from "react-dom";
 //@ts-ignore
-import {IconButton, Input} from "react-figma-ui";
+import { IconButton, Input } from "react-figma-ui";
 //@ts-ignore
 import embed from "vega-embed";
 
 const Editor = ({ view, onBack, onEditView }) => {
   console.log("dywootto views", view);
   const spec = view.visualizationSpec ? view.visualizationSpec : {};
-  const viewName = view.viewName ? view.viewName : '';
+  const viewName = view.viewName ? view.viewName : "";
 
   const [svgString, setSvgString] = React.useState("");
   const [message, setMessage] = React.useState("");
 
-  function setSpec2(newSpec){
-    onEditView(view.viewId,{visualizationSpec:newSpec});
+  function setSpec2(newSpec) {
+    onEditView(view.viewId, { visualizationSpec: newSpec });
   }
-  function setViewName2(newName){
-    onEditView(view.viewId,{viewName:newName});
+  function setViewName2(newName) {
+    onEditView(view.viewId, { viewName: newName });
   }
 
   console.log(svgString);
@@ -41,7 +41,7 @@ const Editor = ({ view, onBack, onEditView }) => {
           vegaSpec: JSON.stringify(spec),
           object: svgString,
           id: visualizationId,
-          name: viewName
+          name: viewName,
         },
       },
       "*"
@@ -56,7 +56,7 @@ const Editor = ({ view, onBack, onEditView }) => {
       setMessage("");
 
       setSpec2(tempSpec);
-      // 
+      //
     } catch (e) {
       setMessage("Not a valid spec");
     }
@@ -87,11 +87,21 @@ const Editor = ({ view, onBack, onEditView }) => {
 
   return (
     <div>
-      <ToolBar onBack={onBack}></ToolBar>
-      <div> <Input value={viewName} placeholder="Enter Visualization Name" onChange={(event)=>{
-        setViewName2(event.target.value);
-      }}></Input></div>
-      <div style={{ display: "flex" }} >
+      <div style={{display:'flex'}}>
+        {" "}
+        <IconButton onClick={onBack} iconProps={{ iconName: "back" }}></IconButton>{" "}
+        <div>
+          {" "}
+          <Input
+            value={viewName}
+            placeholder='Enter Visualization Name'
+            onChange={(event) => {
+              setViewName2(event.target.value);
+            }}></Input>
+        </div>
+      </div>
+
+      <div style={{ display: "flex" }}>
         <VegaSpec
           onCreate={() => onCreate(view.viewId)}
           onFetch={onFetch}
@@ -100,11 +110,6 @@ const Editor = ({ view, onBack, onEditView }) => {
       </div>
     </div>
   );
-};
-
-const ToolBar = ({onBack}) => {
-  return <div> <IconButton onClick={onBack} iconProps={{iconName:'back'}}></IconButton>       <h2>VegaFi</h2>
-  </div>;
 };
 
 const VegaSpec = ({ onCreate, onFetch, onPreview }) => {
