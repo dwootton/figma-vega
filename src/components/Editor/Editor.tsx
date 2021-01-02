@@ -1,15 +1,25 @@
 import * as React from "react";
 import * as ReactDOM from "react-dom";
 //@ts-ignore
-import {IconButton} from "react-figma-ui";
+import {IconButton, Input} from "react-figma-ui";
 //@ts-ignore
 import embed from "vega-embed";
 
 const Editor = ({ view, onBack, onEditView }) => {
   console.log("dywootto views", view);
+  const spec = view.visualizationSpec ? view.visualizationSpec : {};
+  const viewName = view.viewName ? view.viewName : '';
+
   const [svgString, setSvgString] = React.useState("");
-  const [spec, setSpec] = React.useState({});
   const [message, setMessage] = React.useState("");
+
+  function setSpec2(newSpec){
+    onEditView(view.viewId,{visualizationSpec:newSpec});
+  }
+  function setViewName2(newName){
+    onEditView(view.viewId,{viewName:newName});
+  }
+
   console.log(svgString);
   function onFetch() {
     parent.postMessage(
@@ -31,6 +41,7 @@ const Editor = ({ view, onBack, onEditView }) => {
           vegaSpec: JSON.stringify(spec),
           object: svgString,
           id: visualizationId,
+          name: viewName
         },
       },
       "*"
@@ -44,7 +55,8 @@ const Editor = ({ view, onBack, onEditView }) => {
       const tempSpec = JSON.parse(specString);
       setMessage("");
 
-      setSpec(tempSpec);
+      setSpec2(tempSpec);
+      // 
     } catch (e) {
       setMessage("Not a valid spec");
     }
@@ -55,7 +67,7 @@ const Editor = ({ view, onBack, onEditView }) => {
   }
 
   React.useEffect(() => {
-    const result = embed("#vis", spec);
+    const result = embed("#vis", view.visualizationSpec);
     result.then((embedResult) => {
       console.log(embedResult);
       console.log(embedResult.view);
@@ -71,12 +83,14 @@ const Editor = ({ view, onBack, onEditView }) => {
           console.error(err);
         });
     });
-  }, [spec]);
+  }, [view.visualizationSpec]);
 
   return (
     <div>
       <ToolBar onBack={onBack}></ToolBar>
-
+      <div> <Input value={viewName} placeholder="Enter Visualization Name" onChange={(event)=>{
+        setViewName2(event.target.value);
+      }}></Input></div>
       <div style={{ display: "flex" }} >
         <VegaSpec
           onCreate={() => onCreate(view.viewId)}

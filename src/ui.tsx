@@ -124,12 +124,19 @@ const AppWithRedux = ({ views, dispatch }) => {
     setSelectedViewId(null);
   }
   function onViewSelect(viewId) {
+    console.log('moving to selected view!',viewId)
     setSelectedViewId(viewId);
   }
+  console.log('views',views);
+
   function onCreateView(viewData){
+    console.log('creating view',JSON.parse(JSON.stringify(viewData)) );
+    
     dispatch(addView(viewData));
   }
+
   function onEditView(id, alteredView) {
+    console.log('editing view',id, alteredView)
     dispatch(editView(id, alteredView));
 
   }
@@ -164,7 +171,8 @@ const AppWithRedux = ({ views, dispatch }) => {
 // return all nodes + annotation layers
 
 const mapStateToProps = (state) => {
-  const views = state.views;
+  console.log('mapping state to props',state);
+  const views = state.vegaViews;
   return { views };
 };
 

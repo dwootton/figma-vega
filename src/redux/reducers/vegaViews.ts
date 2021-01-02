@@ -1,12 +1,7 @@
 import { ADD_VEGA_VIEW, ALTER_VEGA_VIEW ,DELETE_VEGA_VIEW} from "./../actionTypes";
 
-const initialState : IViewStore = {
-  views: []
-};
+const initialState : IView[] = [];
 
-interface IViewStore {
-    views: IView[];
-}
 interface IView {
     viewId: string; // internal property for identifying ui
     viewNodeId: string; // property for identifying on figma scenegraph
@@ -20,42 +15,39 @@ interface IView {
 
 export default function(state = initialState, action) {
   switch (action.type) {
-    case ADD_VEGA_VIEW: {
+    case ADD_VEGA_VIEW: {  
+        console.log('adding vega view',action,state);
 
-      return {
+      return [
         ...state,
-        views: [...state.views, 
+        
             action.payload.viewData
-        ]
+        
        
-      };
+      ];
     }
     case ALTER_VEGA_VIEW: {
+        
       const { viewId, alteredView } = action.payload;
-      const currentViewsCopy = [...state.views];
+      const currentViewsCopy = [...state];
       const viewIndex = currentViewsCopy.findIndex(view=>view.viewId = viewId);
+      console.log(currentViewsCopy,viewId, alteredView,action)
       if(viewIndex > -1){
         const copyValue = Object.assign({},currentViewsCopy[viewIndex])
+        console.log('altering',copyValue,alteredView,currentViewsCopy)
         currentViewsCopy[viewIndex] = Object.assign(copyValue,alteredView);
       }
 
-      return {
-        ...state,
-        views: currentViewsCopy
-      };
+      return currentViewsCopy;
     }
     case DELETE_VEGA_VIEW: {
         const { viewId } = action.payload;
-        const currentViewsCopy = [...state.views];
+        let currentViewsCopy = [...state];
         const viewIndex = currentViewsCopy.findIndex(view=>view.viewId = viewId);
         if(viewIndex > -1){
-          currentViewsCopy.splice(viewIndex, 1);
-
+            currentViewsCopy = [...currentViewsCopy.slice(0,viewIndex),...currentViewsCopy.slice(viewIndex+1)]
         }
-        return {
-            ...state,
-            views: currentViewsCopy
-          };
+        return currentViewsCopy;
   
     }
     default:

@@ -134,12 +134,14 @@ figma.ui.onmessage = (msg) => {
     if (widthMatches && heightMatches) {
       const width = Number(widthMatches[0]);
       const height = Number(heightMatches[0]);
-      newAnnotationsLayer.resize(width, height);
+      newAnnotationsLayer.resize(width> 0 ? width: 100, height> 0 ? height: 100);
     }
 
     //
     const group = figma.group([newAnnotationsLayer, visualization], figma.currentPage);
     group.name = `Vega View ${msg.id}`;
+    group.setPluginData("viewName", msg.name);
+
     group.setPluginData("type", "vegaView");
     group.setPluginData("annotationSpec", "{}");
     group.setPluginData("annotationNodeId", newAnnotationsLayer.id);
