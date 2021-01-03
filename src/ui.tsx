@@ -15,7 +15,7 @@ import { processSvg } from "./utils";
 
 import Editor from './components/Editor/Editor';
 import Overview from './components/Overview/Overview';
-import { View } from "./common/models/view";
+import View from "./common/models/view";
 const pluginTypes = Object.freeze({
   modifyPath: "modifyPath",
   finishedMarks: "finishedMarks",
@@ -127,7 +127,7 @@ const AppWithRedux = ({ views, dispatch }) => {
     console.log('moving to selected view!',viewId)
     setSelectedViewId(viewId);
   }
-  console.log('views',views);
+  console.log('views',JSON.parse(JSON.stringify(views)));
 
   function onCreateView(viewData){
     console.log('creating view',JSON.parse(JSON.stringify(viewData)) );
@@ -136,7 +136,7 @@ const AppWithRedux = ({ views, dispatch }) => {
   }
 
   function onEditView(id, alteredView) {
-    console.log('editing view',id, alteredView)
+    console.log('editing view',id, JSON.stringify(alteredView));
     dispatch(editView(id, alteredView));
 
   }

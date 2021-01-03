@@ -13,8 +13,8 @@ class View {
     this.viewId = viewObject.viewId? viewObject.viewId: makeID(5);
     this.viewName = viewObject.viewName ? viewObject.viewName :'';
     this.viewNodeId = viewObject.viewNodeId? viewObject.viewNodeId: null;
-    this.visualizationSpec = viewObject.visualizationSpec? viewObject.visualizationSpec: null;
-    this.annotationSpec = viewObject.annotationSpec? viewObject.annotationSpec: null;
+    this.visualizationSpec = viewObject.visualizationSpec? JSON.parse(viewObject.visualizationSpec): {};
+    this.annotationSpec = viewObject.annotationSpec? JSON.parse(viewObject.annotationSpec): {};
     this.vegaPaddingWidth = viewObject.vegaPaddingWidth? viewObject.vegaPaddingWidth: null;
     this.vegaPaddingHeight = viewObject.vegaPaddingHeight? viewObject.vegaPaddingHeight: null;
     this.annotationNodeId = viewObject.annotationNodeId? viewObject.annotationNodeId: null;

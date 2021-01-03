@@ -16,7 +16,7 @@ interface IView {
 export default function(state = initialState, action) {
   switch (action.type) {
     case ADD_VEGA_VIEW: {  
-        console.log('adding vega view',action,state);
+        console.log('adding vega view',JSON.stringify(action),JSON.stringify(state));
 
       return [
         ...state,
@@ -30,11 +30,10 @@ export default function(state = initialState, action) {
         
       const { viewId, alteredView } = action.payload;
       const currentViewsCopy = [...state];
-      const viewIndex = currentViewsCopy.findIndex(view=>view.viewId = viewId);
+      const viewIndex = currentViewsCopy.findIndex(view=>view.viewId === viewId);
       console.log(currentViewsCopy,viewId, alteredView,action)
       if(viewIndex > -1){
         const copyValue = Object.assign({},currentViewsCopy[viewIndex])
-        console.log('altering',copyValue,alteredView,currentViewsCopy)
         currentViewsCopy[viewIndex] = Object.assign(copyValue,alteredView);
       }
 
@@ -43,7 +42,7 @@ export default function(state = initialState, action) {
     case DELETE_VEGA_VIEW: {
         const { viewId } = action.payload;
         let currentViewsCopy = [...state];
-        const viewIndex = currentViewsCopy.findIndex(view=>view.viewId = viewId);
+        const viewIndex = currentViewsCopy.findIndex(view=>view.viewId === viewId);
         if(viewIndex > -1){
             currentViewsCopy = [...currentViewsCopy.slice(0,viewIndex),...currentViewsCopy.slice(viewIndex+1)]
         }

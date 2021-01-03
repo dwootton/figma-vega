@@ -22,13 +22,13 @@ const Editor = ({ view, onBack, onEditView }) => {
   const [message, setMessage] = React.useState("");
 
   function setSpec2(newSpec) {
+    console.log('setting viewSpec',view.viewId,viewName)
     onEditView(view.viewId, { visualizationSpec: newSpec });
   }
   function setViewName2(newName) {
     onEditView(view.viewId, { viewName: newName });
   }
 
-  console.log(svgString);
   function onFetch() {
     parent.postMessage(
       {
@@ -51,7 +51,7 @@ const Editor = ({ view, onBack, onEditView }) => {
         {
           pluginMessage: {
             type: "create",
-            vegaSpec: JSON.stringify(spec, undefined,2),
+            vegaSpec: JSON.stringify(spec),
             svgToRender: svgString,
             viewId: visualizationId,
             name: viewName,
@@ -68,7 +68,7 @@ const Editor = ({ view, onBack, onEditView }) => {
   }
 
   function onPreview(value) {
-    console.log('preview value',value)
+    console.log('preview value',JSON.stringify(value));
 
     //@ts-ignore
     let specString = value//.target.value;//document.getElementById("vegaSpec").value;
@@ -92,7 +92,6 @@ const Editor = ({ view, onBack, onEditView }) => {
         .toSVG()
         .then(function (svg) {
           // process svg string
-          console.log("YOUR SVG STRING", svg);
 
           setSvgString(svg);
         })
@@ -161,7 +160,7 @@ const VegaSpec = ({currentSpec,savedSpec,annotationSpec,visualizationNodeId,onCr
         width="300"
         height="400"
         language="json"
-        options={{formatOnPaste:true, minimap:{enabled:false}}}
+        options={{minimap:{enabled:false}}}
         value={JSON.stringify(currentSpec)}
         onChange={(ev,value)=>onPreview(value)}
       />}

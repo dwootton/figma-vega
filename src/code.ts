@@ -782,7 +782,7 @@ function standardizePathDStrFormat(str) {
     .replace(/ $/g, ""); // trim any tailing space
 }
 
-figma.ui.resize(600, 450);
+figma.ui.resize(600, 500);
 
 // Using relative transformation matrix (gives skewed x value for non-rotated)
 
