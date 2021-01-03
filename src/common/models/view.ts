@@ -9,9 +9,9 @@ class View {
   annotationsNodeId: string; // property for identifying annotations on figma scenegraph
   visualizationNodeId: string; // property for identifying annotations on figma scenegraph
 
-  constructor() {
+  constructor(viewName) {
     this.viewId = makeID(5);
-    this.viewName = '';
+    this.viewName = viewName ? viewName :'';
     this.viewNodeId = null;
     this.visualizationSpec = null;
     this.annotationSpec = null;

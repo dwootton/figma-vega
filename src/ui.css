@@ -27,3 +27,49 @@ input:hover { box-shadow: inset 0 0 0 1px rgba(0, 0, 0, 0.1); }
 button:focus { box-shadow: inset 0 0 0 2px #18A0FB; }
 #create:focus { box-shadow: inset 0 0 0 2px rgba(0, 0, 0, 0.3); }
 input:focus { box-shadow: inset 0 0 0 2px #18A0FB; }
+
+
+.card-body {
+  border-radius: 5px;
+  border: 1px solid whitesmoke;
+  width: 225px;
+  height: 50px;
+  background-color: whitesmoke;
+  overflow: hidden;
+  display: grid;
+  grid-template-columns: 50px 100%;
+  grid-template-rows: 1fr 1fr;
+  grid-template-areas:
+    "card-picture card-title"
+    "card-picture card-description";
+
+  cursor: pointer;
+  padding: 4px;
+  transition: background-color 400ms;
+  margin: 4px;
+}
+
+.card-body:hover {
+  background-color: rgba(245, 245, 245, 0.4);
+}
+
+.card-image {
+  grid-area: card-picture;
+}
+
+.card-title {
+  grid-area: card-title;
+  justify-self: start;
+  align-self: end;
+  margin-left: 4px;
+  font-size: 12px;
+}
+
+.card-description {
+  grid-area: card-description;
+  align-self: start;
+  justify-self: start;
+  font-size: 8px;
+  color: lightslategrey;
+  overflow: auto;
+}

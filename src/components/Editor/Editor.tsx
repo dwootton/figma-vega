@@ -5,9 +5,11 @@ import { IconButton, Input } from "react-figma-ui";
 //@ts-ignore
 import embed from "vega-embed";
 
+
 const Editor = ({ view, onBack, onEditView }) => {
   console.log("dywootto views", view);
   const spec = view.visualizationSpec ? view.visualizationSpec : {};
+  const [savedSpec,setSavedSpec] = React.useState(spec);
   const viewName = view.viewName ? view.viewName : "";
 
   const [svgString, setSvgString] = React.useState("");
@@ -34,18 +36,28 @@ const Editor = ({ view, onBack, onEditView }) => {
     ); //
   }
   function onCreate(visualizationId) {
-    parent.postMessage(
-      {
-        pluginMessage: {
-          type: "create",
-          vegaSpec: JSON.stringify(spec),
-          object: svgString,
-          id: visualizationId,
-          name: viewName,
+    // TODO: check if valid vega spec, if not don't create
+   const result = embed("#vis", view.visualizationSpec);
+    result.then((embedResult) => {
+      setSavedSpec(spec);
+      parent.postMessage(
+        {
+          pluginMessage: {
+            type: "create",
+            vegaSpec: JSON.stringify(spec),
+            object: svgString,
+            id: visualizationId,
+            name: viewName,
+          },
         },
-      },
-      "*"
-    );
+        "*"
+      );
+    }).catch(()=>{
+      console.log('invalid vega spec!')
+      setMessage("To create a visualization, input a valid vega spec.");
+
+    })
+    
   }
 
   function onPreview() {
@@ -60,10 +72,6 @@ const Editor = ({ view, onBack, onEditView }) => {
     } catch (e) {
       setMessage("Not a valid spec");
     }
-  }
-
-  function onCancel() {
-    parent.postMessage({ pluginMessage: { type: "cancel" } }, "*");
   }
 
   React.useEffect(() => {
@@ -89,11 +97,12 @@ const Editor = ({ view, onBack, onEditView }) => {
     <div>
       <div style={{display:'flex'}}>
         {" "}
-        <IconButton onClick={onBack} iconProps={{ iconName: "back" }}></IconButton>{" "}
+        <IconButton onClick={onBack} style={{'cursor':'pointer'}} iconProps={{ iconName: "back" }}></IconButton>{" "}
         <div>
           {" "}
           <Input
             value={viewName}
+            style={{width:'250px', marginLeft:'24px'}}
             placeholder='Enter Visualization Name'
             onChange={(event) => {
               setViewName2(event.target.value);
@@ -103,6 +112,7 @@ const Editor = ({ view, onBack, onEditView }) => {
 
       <div style={{ display: "flex" }}>
         <VegaSpec
+          initialSpec={spec}
           onCreate={() => onCreate(view.viewId)}
           onFetch={onFetch}
           onPreview={onPreview}></VegaSpec>
@@ -112,14 +122,15 @@ const Editor = ({ view, onBack, onEditView }) => {
   );
 };
 
-const VegaSpec = ({ onCreate, onFetch, onPreview }) => {
+const VegaSpec = ({initialSpec,onCreate, onFetch, onPreview }) => {
   return (
     <div style={{ width: "100%", height: "250px" }}>
       <textarea
+        wrap="soft"
         placeholder='Copy Vega Spec here.'
         id='vegaSpec'
-        style={{ border: "none", width: "100%", height: "100%", resize: "none" }}
-        onChange={onPreview}></textarea>
+        style={{ border: "none", width: "100%", height: "100%", resize: "none",whiteSpace:'nowrap',overflow:'auto', outline:'none' }}
+        onChange={onPreview}>{JSON.stringify(initialSpec)}</textarea>
       <button id='create' onClick={onCreate}>
         Create
       </button>
