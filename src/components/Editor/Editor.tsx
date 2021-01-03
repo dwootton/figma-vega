@@ -7,12 +7,14 @@ import embed from "vega-embed";
 
 //@ts-ignore
 import  { ControlledEditor, DiffEditor } from "@monaco-editor/react";
+import { view } from "paper";
 
 
 
 const Editor = ({ view, onBack, onEditView }) => {
   console.log("dywootto views", view);
   const spec = view.visualizationSpec ? view.visualizationSpec : {};
+  const visualizationNodeId = view.visualizationNodeId ? view.visualizationNodeId : '';
   const [savedSpec,setSavedSpec] = React.useState(spec);
   const viewName = view.viewName ? view.viewName : "";
 
@@ -43,21 +45,22 @@ const Editor = ({ view, onBack, onEditView }) => {
     // TODO: check if valid vega spec, if not don't create
    const result = embed("#vis", view.visualizationSpec);
     result.then((embedResult) => {
+      console.log('embed result',embedResult);
       setSavedSpec(spec);
       parent.postMessage(
         {
           pluginMessage: {
             type: "create",
-            vegaSpec: JSON.stringify(spec),
-            object: svgString,
-            id: visualizationId,
+            vegaSpec: JSON.stringify(spec, undefined,2),
+            svgToRender: svgString,
+            viewId: visualizationId,
             name: viewName,
           },
         },
         "*"
       );
-    }).catch(()=>{
-      console.log('invalid vega spec!')
+    }).catch((err)=>{
+      console.log('invalid vega spec!',err)
       setMessage("To create a visualization, input a valid vega spec.");
 
     })
@@ -121,6 +124,7 @@ const Editor = ({ view, onBack, onEditView }) => {
           currentSpec={spec}
           savedSpec={savedSpec}
           onCreate={() => onCreate(view.viewId)}
+          visualizationNodeId={visualizationNodeId}
           annotationSpec={{}}
           onFetch={onFetch}
           onPreview={onPreview}></VegaSpec>
@@ -130,40 +134,40 @@ const Editor = ({ view, onBack, onEditView }) => {
   );
 };
 
-const VegaSpec = ({currentSpec,savedSpec,annotationSpec,onCreate, onFetch, onPreview }) => {
+const VegaSpec = ({currentSpec,savedSpec,annotationSpec,visualizationNodeId,onCreate, onFetch, onPreview }) => {
   const [showOriginal,setShowOriginal] = React.useState(false);
   function toggleShowOriginal(){
     setShowOriginal(!showOriginal);
   }
   return (
     <div style={{ width: "100%", height: "250px" }}>
-      <Switch id="originalSwitch" checked={showOriginal} onChange={toggleShowOriginal}>Show Original</Switch>
+      {/*<Switch id="originalSwitch" checked={showOriginal} onChange={toggleShowOriginal}>Show Original</Switch>
 
-     {/* <textarea
+      <textarea
         wrap="soft"
         placeholder='Copy Vega Spec here.'
         id='vegaSpec'
         style={{ border: "none", width: "100%", height: "100%", resize: "none",whiteSpace:'nowrap',overflow:'auto', outline:'none' }}
-     onChange={onPreview}>{JSON.stringify(initialSpec)}</textarea>*/}
+     onChange={onPreview}>{JSON.stringify(initialSpec)}</textarea>
      { showOriginal &&  <DiffEditor
         width="300"
         height="400"
         language="json"
         options={{	renderSideBySide: false,enableSplitViewResizing: false , readOnly:true  }}
-        original={showOriginal ? JSON.stringify(savedSpec): null}
-        value={JSON.stringify(currentSpec)}
-        onChange={onPreview}
-      />}
+        original={JSON.stringify(savedSpec)}
+        value={JSON.stringify(currentSpec, undefined, 2)}
+      />}*/}
        {!showOriginal &&  <ControlledEditor
         width="300"
         height="400"
         language="json"
+        options={{formatOnPaste:true, minimap:{enabled:false}}}
         value={JSON.stringify(currentSpec)}
         onChange={(ev,value)=>onPreview(value)}
       />}
     
       <button id='create' onClick={onCreate}>
-        Create
+        {visualizationNodeId? 'Update':'Create'}
       </button>
       <button id='create' onClick={onFetch}>
         Fetch

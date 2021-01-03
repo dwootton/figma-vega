@@ -15,6 +15,7 @@ import { processSvg } from "./utils";
 
 import Editor from './components/Editor/Editor';
 import Overview from './components/Overview/Overview';
+import { View } from "./common/models/view";
 const pluginTypes = Object.freeze({
   modifyPath: "modifyPath",
   finishedMarks: "finishedMarks",
@@ -78,8 +79,8 @@ onmessage = (event) => {
     const viewsData = event.data.pluginMessage.viewsData;
     console.log("views data", viewsData);
     for (const view of viewsData) {
-      const addAction = { type: "ADD_VEGA_VIEW", payload: { viewData: view } };
-
+      const parsedView = new View(view)
+      const addAction = { type: "ADD_VEGA_VIEW", payload: { viewData: parsedView } };
       store.dispatch(addAction);
     }
 
@@ -96,15 +97,14 @@ onmessage = (event) => {
   } else if (event.data.pluginMessage.type === pluginTypes.finishedCreate) {
     // add the figma node id for the vega view
     const viewNodeId = event.data.pluginMessage.viewNodeId;
-    const annotationsNodeId = event.data.pluginMessage.annotationsNodeId;
+    const annotationNodeId = event.data.pluginMessage.annotationNodeId;
     const visualizationNodeId = event.data.pluginMessage.visualizationNodeId;
-
     const viewId = event.data.pluginMessage.viewId;
 
     console.log("created Node Id", viewId, viewNodeId);
     const alterActions = {
       type: "ALTER_VEGA_VIEW",
-      payload: { viewId: viewId, view: { viewNodeId: viewNodeId, annotationsNodeId: annotationsNodeId,visualizationNodeId:visualizationNodeId} },
+      payload: { viewId: viewId, view: { viewNodeId: viewNodeId, annotationNodeId: annotationNodeId,visualizationNodeId:visualizationNodeId} },
     };
 
     store.dispatch(alterActions);

@@ -9,7 +9,7 @@ interface IView {
     annotationSpec: string; // stringified JSON specification for annotations
     vegaPaddingWidth:string; // width of padding inherent in vega visualization 
     vegaPaddingHeight:string;// height of padding inherent in vega visualization 
-    annotationsNodeId:string; // property for identifying annotations on figma scenegraph
+    annotationNodeId:string; // property for identifying annotations on figma scenegraph
     visualizationNodeId:string; // property for identifying annotations on figma scenegraph
 }
 

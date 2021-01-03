@@ -98,17 +98,20 @@ figma.ui.onmessage = (msg) => {
   if (msg.type === "create") {
     // TODO: cast as a create msg type
     const nodes: SceneNode[] = [];
-    const id = msg.id;
+    const svgString = msg.svgToRender
+    const id = msg.viewId;
+    const viewName = msg.name;
     console.log(msg);
 
-    const visualization = figma.createNodeFromSvg(msg.object);
-    visualization.name = `Visualization - ${id}`;
+    const visualization = figma.createNodeFromSvg(svgString);
+    visualization.name = `Visualization Layer - ${viewName}`;
+
     visualization.locked = true;
     // place annotations layer on top and make transparent
     const newAnnotationsLayer = figma.createFrame();
 
-    const paddingWidthMatches = msg.object.match(PADDING_WIDTH_REGEX);
-    const paddingHeightMatches = msg.object.match(PADDING_HEIGHT_REGEX);
+    const paddingWidthMatches = svgString.match(PADDING_WIDTH_REGEX);
+    const paddingHeightMatches = svgString.match(PADDING_HEIGHT_REGEX);
 
     if (paddingWidthMatches) {
       const widthString = paddingWidthMatches[0];
@@ -124,12 +127,12 @@ figma.ui.onmessage = (msg) => {
     newAnnotationsLayer.fills = fills;
     newAnnotationsLayer.clipsContent = false;
 
-    newAnnotationsLayer.name = `Annotations Layer - ${id}`;
+    newAnnotationsLayer.name = `Annotations Layer - ${viewName}`;
     // grab width and height
 
     // set annotations width and height
-    const widthMatches = msg.object.match(SVG_WIDTH_REGEX);
-    const heightMatches = msg.object.match(SVG_HEIGHT_REGEX);
+    const widthMatches = svgString.match(SVG_WIDTH_REGEX);
+    const heightMatches = svgString.match(SVG_HEIGHT_REGEX);
 
     if (widthMatches && heightMatches) {
       const width = Number(widthMatches[0]);
@@ -139,14 +142,14 @@ figma.ui.onmessage = (msg) => {
 
     //
     const group = figma.group([newAnnotationsLayer, visualization], figma.currentPage);
-    group.name = `Vega View ${msg.id}`;
-    group.setPluginData("viewName", msg.name);
-
+    group.name = viewName;
+    group.setPluginData("viewName", viewName);
+    group.setPluginData("viewId", msg.viewId);
     group.setPluginData("type", "vegaView");
     group.setPluginData("annotationSpec", "{}");
     group.setPluginData("annotationNodeId", newAnnotationsLayer.id);
-    group.setPluginData("annotationSpec", msg.vegaSpec);
-    group.setPluginData("annotationNodeId", visualization.id);
+    group.setPluginData("visualizationSpec", msg.vegaSpec);
+    group.setPluginData("visualizationNodeId", visualization.id);
 
     if (paddingWidthMatches) {
       const widthString = paddingWidthMatches[0];
@@ -159,9 +162,10 @@ figma.ui.onmessage = (msg) => {
     }
 
     figma.ui.postMessage({
+      viewId:msg.viewId,
       viewNodeId: group.id,
       visualizationNodeId: visualization.id,
-      annotationsNodeId: newAnnotationsLayer.id,
+      annotationNodeId: newAnnotationsLayer.id,
       type: "finishedCreate",
     });
   } else if (msg.type === "fetch") {
@@ -273,16 +277,19 @@ figma.ui.onmessage = (msg) => {
 function extractVegaViewData(node: BaseNode) {
   const propertiesToExtract = [
     "viewId",
+    "viewName",
     "visualizationSpec",
     "annotationSpec",
     "vegaPaddingWidth",
     "vegaPaddingHeight",
-    "annotationsNodeId",
-    "visualizationNodeId",
+    "annotationNodeId",
+    "visualizationNodeId"
   ];
   const extractedData = { nodeId: node.id };
   for (const property of propertiesToExtract) {
     const data = node.getPluginData(property);
+
+    console.log('property',property,'data',data)
     extractedData[property] = data;
   }
   return extractedData;
@@ -775,7 +782,7 @@ function standardizePathDStrFormat(str) {
     .replace(/ $/g, ""); // trim any tailing space
 }
 
-figma.ui.resize(600, 350);
+figma.ui.resize(600, 450);
 
 // Using relative transformation matrix (gives skewed x value for non-rotated)
 
