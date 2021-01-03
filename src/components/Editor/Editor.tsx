@@ -1,9 +1,13 @@
 import * as React from "react";
 import * as ReactDOM from "react-dom";
 //@ts-ignore
-import { IconButton, Input } from "react-figma-ui";
+import { IconButton, Input,Switch } from "react-figma-ui";
 //@ts-ignore
 import embed from "vega-embed";
+
+//@ts-ignore
+import  { ControlledEditor, DiffEditor } from "@monaco-editor/react";
+
 
 
 const Editor = ({ view, onBack, onEditView }) => {
@@ -60,9 +64,11 @@ const Editor = ({ view, onBack, onEditView }) => {
     
   }
 
-  function onPreview() {
+  function onPreview(value) {
+    console.log('preview value',value)
+
     //@ts-ignore
-    let specString = document.getElementById("vegaSpec").value;
+    let specString = value//.target.value;//document.getElementById("vegaSpec").value;
     try {
       const tempSpec = JSON.parse(specString);
       setMessage("");
@@ -112,8 +118,10 @@ const Editor = ({ view, onBack, onEditView }) => {
 
       <div style={{ display: "flex" }}>
         <VegaSpec
-          initialSpec={spec}
+          currentSpec={spec}
+          savedSpec={savedSpec}
           onCreate={() => onCreate(view.viewId)}
+          annotationSpec={{}}
           onFetch={onFetch}
           onPreview={onPreview}></VegaSpec>
         <Visualization errorMessage={message}></Visualization>
@@ -122,15 +130,38 @@ const Editor = ({ view, onBack, onEditView }) => {
   );
 };
 
-const VegaSpec = ({initialSpec,onCreate, onFetch, onPreview }) => {
+const VegaSpec = ({currentSpec,savedSpec,annotationSpec,onCreate, onFetch, onPreview }) => {
+  const [showOriginal,setShowOriginal] = React.useState(false);
+  function toggleShowOriginal(){
+    setShowOriginal(!showOriginal);
+  }
   return (
     <div style={{ width: "100%", height: "250px" }}>
-      <textarea
+      <Switch id="originalSwitch" checked={showOriginal} onChange={toggleShowOriginal}>Show Original</Switch>
+
+     {/* <textarea
         wrap="soft"
         placeholder='Copy Vega Spec here.'
         id='vegaSpec'
         style={{ border: "none", width: "100%", height: "100%", resize: "none",whiteSpace:'nowrap',overflow:'auto', outline:'none' }}
-        onChange={onPreview}>{JSON.stringify(initialSpec)}</textarea>
+     onChange={onPreview}>{JSON.stringify(initialSpec)}</textarea>*/}
+     { showOriginal &&  <DiffEditor
+        width="300"
+        height="400"
+        language="json"
+        options={{	renderSideBySide: false,enableSplitViewResizing: false , readOnly:true  }}
+        original={showOriginal ? JSON.stringify(savedSpec): null}
+        value={JSON.stringify(currentSpec)}
+        onChange={onPreview}
+      />}
+       {!showOriginal &&  <ControlledEditor
+        width="300"
+        height="400"
+        language="json"
+        value={JSON.stringify(currentSpec)}
+        onChange={(ev,value)=>onPreview(value)}
+      />}
+    
       <button id='create' onClick={onCreate}>
         Create
       </button>

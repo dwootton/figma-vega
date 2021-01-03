@@ -1,6 +1,8 @@
 const HtmlWebpackInlineSourcePlugin = require("html-webpack-inline-source-plugin");
 const HtmlWebpackPlugin = require("html-webpack-plugin");
+
 const path = require("path");
+
 
 module.exports = (env, argv) => ({
   mode: argv.mode === "production" ? "production" : "development",
@@ -23,6 +25,9 @@ module.exports = (env, argv) => ({
 
       // Allows you to use "<%= require('./file.svg') %>" in your HTML code to get a data URI
       { test: /\.(png|jpg|gif|webp|svg)$/, loader: "url-loader" },
+
+      
+      
     ]
   },
   // Webpack tries these extensions for you if you omit the extension like "import './file'"
@@ -47,5 +52,6 @@ module.exports = (env, argv) => ({
       chunks: ["ui"],
     }),
     new HtmlWebpackInlineSourcePlugin(HtmlWebpackPlugin),
+    
   ],
 });
