@@ -98,7 +98,7 @@ figma.ui.onmessage = (msg) => {
   if (msg.type === "create") {
     // TODO: cast as a create msg type
     const nodes: SceneNode[] = [];
-    const svgString = msg.svgToRender
+    const svgString = msg.svgToRender;
     const id = msg.viewId;
     const viewName = msg.name;
     console.log(msg);
@@ -137,7 +137,7 @@ figma.ui.onmessage = (msg) => {
     if (widthMatches && heightMatches) {
       const width = Number(widthMatches[0]);
       const height = Number(heightMatches[0]);
-      newAnnotationsLayer.resize(width> 0 ? width: 100, height> 0 ? height: 100);
+      newAnnotationsLayer.resize(width > 0 ? width : 100, height > 0 ? height : 100);
     }
 
     //
@@ -146,7 +146,7 @@ figma.ui.onmessage = (msg) => {
     group.setPluginData("viewName", viewName);
     group.setPluginData("viewId", msg.viewId);
     group.setPluginData("type", "vegaView");
-    group.setPluginData("annotationSpec", "{}");
+    group.setPluginData("annotationSpec", `{"marks":[]}`);
     group.setPluginData("annotationNodeId", newAnnotationsLayer.id);
     group.setPluginData("visualizationSpec", msg.vegaSpec);
     group.setPluginData("visualizationNodeId", visualization.id);
@@ -162,84 +162,94 @@ figma.ui.onmessage = (msg) => {
     }
 
     figma.ui.postMessage({
-      viewId:msg.viewId,
+      viewId: msg.viewId,
       viewNodeId: group.id,
       visualizationNodeId: visualization.id,
       annotationNodeId: newAnnotationsLayer.id,
       type: "finishedCreate",
     });
   } else if (msg.type === "fetch") {
+    //const selectedNodeId = msg.viewNodeId;
+    console.log("fetching node id", msg.viewNodeId);
+    const annotationsId = msg.annotationNodeId;
+    const viewNodeId = msg.viewNodeId;
+    const viewId = msg.viewId;
+
     // uses a fetch by id
+    const annotationsLayer = figma.getNodeById(annotationsId);
 
     // find current selection
     //@ts-ignore    //
     // grab annnotations layer,
     // grab plugin data for the width/height padding
     //const newSelection = [figma.flatten(figma.currentPage.selection)];
-    const newSelection = figma.currentPage.selection;
+    console.log(annotationsLayer);
+    const nodeIterator = walkTree(annotationsLayer);
 
-    const marksToAdd = [];
-    for (const sceneNode of newSelection) {
-      const nodeIterator = walkTree(sceneNode);
-
-      let nodeStep = nodeIterator.next();
-      while (!nodeStep.done) {
-        // skip node types
-        if (nodeStep.value.type === "FRAME" || nodeStep.value.type === "GROUP") {
-          nodeStep = nodeIterator.next();
-          continue;
-        }
-
-        const node = nodeStep.value.clone();
-
-        console.log("node value", node);
-        // if nodeType is group
-        const vectorizedNodes = vectorize(node);
-
-        vectorizedNodes.map((vectorizedNode) => {
-          figma.ui.postMessage({
-            data: vectorizedNode.vectorPaths,
-            viewNodeId: nodeStep.value.nodeId,
-            nodeId: vectorizedNode.id,
-            type: "modifyPath",
-            outlinedStroke: vectorizedNodes.length > 1,
-          });
-        });
-
+    let nodeStep = nodeIterator.next();
+    while (!nodeStep.done) {
+      // skip node types
+      if (nodeStep.value.type === "FRAME" || nodeStep.value.type === "GROUP") {
         nodeStep = nodeIterator.next();
+        continue;
       }
+
+      const node = nodeStep.value.clone();
+
+      console.log("node value", node);
+      // if nodeType is group
+      const vectorizedNodes = vectorize(node);
+      console.log("modifying path", vectorizedNodes);
+
+      const vectorPaths = vectorizedNodes.map((vectorizedNode) => {
+        return { nodeId: vectorizedNode.id, vectorPath: vectorizedNode.vectorPaths };
+      });
+
+      figma.ui.postMessage({
+        vectorNodes: vectorPaths,
+        viewNodeId: viewNodeId,
+        viewId: viewId,
+        type: "modifyPath",
+        outlinedStroke: vectorizedNodes.length > 1,
+      });
+
+      nodeStep = nodeIterator.next();
     }
   } else if (msg.type === "sendScaled") {
-    console.log("in scaledSend!", msg.object);
+    const { svgNodes, viewId, viewNodeId } = msg;
     const viewNode = figma.getNodeById(msg.viewNodeId);
+    console.log("in send scaled", viewId, viewNode, msg);
+
     if (viewNode) {
       const visaulizationPaddingWidth = Number(viewNode.getPluginData("vegaPaddingWidth"));
       const visaulizationPaddingHeight = Number(viewNode.getPluginData("vegaPaddingHeight"));
-      const vectorizedNode = figma.getNodeById(msg.nodeId);
+      const parsedSpecs = svgNodes.map((svgNode) => {
+        const { svgString, nodeId } = svgNode;
+        const vectorizedNode = figma.getNodeById(nodeId);
 
-      // lines and vector
+        // lines and vector
 
-      if (vectorizedNode.type !== "VECTOR") {
-        return;
-      }
+        if (vectorizedNode.type !== "VECTOR") {
+          return;
+        }
 
-      const { width, height, tX, tY, scale } = calculatePlacement(
-        vectorizedNode,
-        visaulizationPaddingWidth,
-        visaulizationPaddingHeight
-      );
+        const { width, height, tX, tY, scale } = calculatePlacement(
+          vectorizedNode,
+          visaulizationPaddingWidth,
+          visaulizationPaddingHeight
+        );
+        const isVisible = calculateIsVisible(vectorizedNode);
+        const strokeSpecs = calculateStrokeSpecs(vectorizedNode);
+        const fillSpecs = calculateFillSpecs(vectorizedNode);
+        const miscSpecs = calculateMiscSpecs(vectorizedNode);
 
-      const strokeSpecs = calculateStrokeSpecs(vectorizedNode);
-      const fillSpecs = calculateFillSpecs(vectorizedNode);
-      const miscSpecs = calculateMiscSpecs(vectorizedNode);
-
-      const propertySpecs = [].concat(strokeSpecs, fillSpecs, miscSpecs);
-      const translatedSpecs = `{
+        const propertySpecs = [].concat(strokeSpecs, fillSpecs, miscSpecs);
+        const translatedSpec = `{
         "type": "symbol",
         "interactive": false,
         "encode": {
           "enter": {
-            "shape": {"value": "${msg.object}"},
+            "shape": {"value": "${msg.scaledSVGString}"},
             "size":{"value":${scale}},
             ${propertySpecs.join(",")}
           },
@@ -251,9 +261,17 @@ figma.ui.onmessage = (msg) => {
           }
         }
        }`;
+        const parsedSpec = JSON.parse(translatedSpec);
+        if (!isVisible) {
+          parsedSpec["encode"]["enter"]["opacity"] = 0;
+        }
 
-      vectorizedNode.remove();
-      figma.ui.postMessage({ specString: translatedSpecs, type: "finishedMarks" });
+        console.log("finished marks", parsedSpec);
+        vectorizedNode.remove();
+        return parsedSpec;
+      });
+
+      figma.ui.postMessage({ annotationSpec: parsedSpecs, viewId: viewId, type: "finishedMarks" });
     }
   } else if (msg.type === "startUp") {
     // scan through document to find all nodes with plugin data type matching vega view
@@ -277,19 +295,20 @@ figma.ui.onmessage = (msg) => {
 function extractVegaViewData(node: BaseNode) {
   const propertiesToExtract = [
     "viewId",
-    "viewName",
+    // "viewNodeId", commenting out because it is not a plugin property
+    //"viewName",
     "visualizationSpec",
     "annotationSpec",
     "vegaPaddingWidth",
     "vegaPaddingHeight",
     "annotationNodeId",
-    "visualizationNodeId"
+    "visualizationNodeId",
   ];
-  const extractedData = { nodeId: node.id };
+  const extractedData = { viewName: node.name, viewNodeId: node.id };
   for (const property of propertiesToExtract) {
     const data = node.getPluginData(property);
 
-    console.log('property',property,'data',data)
+    console.log("property", property, "data", data);
     extractedData[property] = data;
   }
   return extractedData;
@@ -305,12 +324,53 @@ function calculateMiscSpecs(node: VectorNode) {
     //@ts-ignore wrong typings ?
     attributes.push(`"opacity": {"value": ${node.opacity}}`);
   }
+  if (node.blendMode !== "NORMAL" && BLEND_MODE_MAPPINGS[node.blendMode]) {
+    attributes.push(`"blend": {"value": ${BLEND_MODE_MAPPINGS[node.blendMode]}}`);
+  }
   return attributes;
 }
+function inAny(paintArr: readonly Paint[], predicate) {
+  let flag = false;
+  for (const value of paintArr) {
+    if (predicate(value)) {
+      flag = true;
+    }
+  }
+  return flag;
+}
+function calculateIsVisible(node: VectorNode) {
+  let isVisible = false;
+  //@ts-ignore
+  if (inAny(node.fills, (paint) => paint.visible && paint.opacity > 0)) {
+    isVisible = true;
+    //@ts-ignore
+  } else if (inAny(node.strokes, (paint) => paint.visible && paint.opacity > 0)) {
+    isVisible = true;
+  }
+  return isVisible;
+}
+const BLEND_MODE_MAPPINGS = {
+  DARKEN: "darken",
+  MULTIPLY: "multiply",
+  COLOR_BURN: "color-burn",
+  LIGHTEN: "lighten",
+  SCREEN: "screen",
+  COLOR_DODGE: "color-dodge",
+  OVERLAY: "overlay",
+  SOFT_LIGHT: "soft-light",
+  HARD_LIGHT: "hard-light",
+  DIFFERENCE: "difference",
+  EXCLUSION: "exclusion",
+  HUE: "hue",
+  SATURATION: "saturation",
+  COLOR: "color",
+  LUMINOSITY: "luminosity",
+};
 
 function calculateFillSpecs(node: VectorNode) {
   const attributes = [];
-  if (node.fills) {
+  console.log("in fills spec", node.fills, node.opacity, node.visible);
+  if (node.fills && node.fills[0] && node.fills[0].visible) {
     //@ts-ignore wrong typings ?
     const color = node.fills[0].color;
     console.log("colors", color.r, color.g, color.b, rgbPercentToHex(color.r, color.g, color.b));
@@ -782,7 +842,7 @@ function standardizePathDStrFormat(str) {
     .replace(/ $/g, ""); // trim any tailing space
 }
 
-figma.ui.resize(600, 500);
+figma.ui.resize(750, 650);
 
 // Using relative transformation matrix (gives skewed x value for non-rotated)
 

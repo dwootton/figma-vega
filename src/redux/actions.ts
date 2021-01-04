@@ -17,6 +17,6 @@ export const editView = (viewId, viewData) => ({
   type: ALTER_VEGA_VIEW,
   payload: {
     viewId: viewId,
-    alteredView: viewData,
+    view: viewData,
   },
 });

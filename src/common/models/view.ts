@@ -14,7 +14,7 @@ class View {
     this.viewName = viewObject.viewName ? viewObject.viewName :'';
     this.viewNodeId = viewObject.viewNodeId? viewObject.viewNodeId: null;
     this.visualizationSpec = viewObject.visualizationSpec? JSON.parse(viewObject.visualizationSpec): {};
-    this.annotationSpec = viewObject.annotationSpec? JSON.parse(viewObject.annotationSpec): {};
+    this.annotationSpec = viewObject.annotationSpec? JSON.parse(viewObject.annotationSpec): {marks:[]};
     this.vegaPaddingWidth = viewObject.vegaPaddingWidth? viewObject.vegaPaddingWidth: null;
     this.vegaPaddingHeight = viewObject.vegaPaddingHeight? viewObject.vegaPaddingHeight: null;
     this.annotationNodeId = viewObject.annotationNodeId? viewObject.annotationNodeId: null;

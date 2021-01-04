@@ -1,5 +1,4 @@
 
-import * as paper from 'paper';
 
 export function createNormalizedPath(node: VectorNode) {
     const x = node.x;
@@ -15,7 +14,6 @@ export function createNormalizedPath(node: VectorNode) {
   
     const combinedPath = paths.join(" ");
     console.log("combinedpath", combinedPath);
-    console.log("combinedpath", paper);
   
     /*const paperPath = new paper.Path(combinedPath);
     console.log("combinedpath",paperPath );

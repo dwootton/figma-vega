@@ -16,6 +16,8 @@ class SVGPath {
     this.dec = 3;
   }
 
+
+
   importString(str) {
     str = str.replace(/\s/g, " "); // white spaces
     str = str.trim(); // spaces at begin and end
@@ -45,6 +47,7 @@ class SVGPath {
 
     while (i < list.length) {
       var seg = new Segment();
+      console.log(seg)
         seg.value = list[i];
       if (list[i].charCodeAt(0) > 64) {
         seg.t = list[i++];
@@ -125,7 +128,7 @@ class SVGPath {
     var str = "";
     var pre = "";
     for (var i = 0; i < this.segments.length; i++) {
-      var seg = this.segments[i];//this.formatSegment(this.segments[i]);
+      var seg = this.formatSegment(this.segments[i]);
       
       console.log(seg);
       switch (seg.t) {
@@ -207,7 +210,7 @@ class SVGPath {
   exportList() {
     var list = [];
     for (var i = 0; i < this.segments.length; i++) {
-      list[i] = this.formatSegment(this.segments[i]);
+      list[i] = this.formatSegment(this.segments[i],3);
     }
     return list;
   }
@@ -312,7 +315,7 @@ class SVGPath {
     d = Number(d);
     if (isNaN(d)) d = 0;
     if (d < 0) d = -1;
-    dec = Math.floor(d);
+    this.dec = Math.floor(d);
   }
 
   // move path with given dx, dy
@@ -476,14 +479,14 @@ class SVGPath {
     }
     return seg;
   }
-  roundDec(dec,num) {
-    if (dec < 0) return num;
+  roundDec(num) {
+    if (this.dec < 0) return num;
     if (num % 1 === 0) {
       return num;
-    } else if (dec == 0) {
+    } else if (this.dec == 0) {
       return Math.round(num);
     } else {
-      var pow = Math.pow(10, dec);
+      var pow = Math.pow(10, this.dec);
       return Math.round(num * pow) / pow;
     }
   }
