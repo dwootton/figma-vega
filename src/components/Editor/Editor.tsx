@@ -10,6 +10,9 @@ import embed from "vega-embed";
 
 //@ts-ignore
 import { ControlledEditor, DiffEditor } from "@monaco-editor/react";
+//@ts-ignore
+import {  ResizableBox } from "react-resizable";
+import "react-resizable/css/styles.css";
 
 const Editor = ({ view, onBack, onEditView }) => {
   console.log("dywootto views", view);
@@ -125,10 +128,14 @@ const Editor = ({ view, onBack, onEditView }) => {
       console.log("about to add notification!");
       store.addNotification({
         title: "Annotated Vega Spec Copied!",
-        message: <Text addToEditor={() => {
-          onEditView(view.viewId, { visualizationSpec: mergedSpec });
-        }}/>,
-        
+        message: (
+          <Text
+            addToEditor={() => {
+              onEditView(view.viewId, { visualizationSpec: mergedSpec });
+            }}
+          />
+        ),
+
         /*() => {
           return ""
           (
@@ -188,21 +195,24 @@ const Editor = ({ view, onBack, onEditView }) => {
     </div>
   );
 };
-const Text = ({addToEditor})=>{
-  return <div>Updated Vega specification has been copied to your clipboard. <span style={{ textDecoration: "underline" }} onClick={addToEditor}>Add to Vega Editor?</span></div>
-}
+const Text = ({ addToEditor }) => {
+  return (
+    <div>
+      Updated Vega specification has been copied to your clipboard.{" "}
+      <span style={{ textDecoration: "underline" }} onClick={addToEditor}>
+        Add to Vega Editor?
+      </span>
+    </div>
+  );
+};
+
 function copyToClipboard(text) {
   var dummy = document.createElement("textarea");
-  // to avoid breaking orgain page when copying more words
-  // cant copy when adding below this code
-  // dummy.style.display = 'none'
   document.body.appendChild(dummy);
-  //Be careful if you use texarea. setAttribute('value', value), which works with "input" does not work with "textarea". – Eduard
   dummy.value = text;
   dummy.select();
   document.execCommand("copy");
   document.body.removeChild(dummy);
-  console.log("copoied!");
 }
 
 function mergeVisualizationAndAnnotationSpec(visualizationSpec, annotationSpec) {
@@ -236,6 +246,7 @@ const VegaSpec = ({
   onPreview,
 }) => {
   const [editor, setEditor] = React.useState(null);
+  const[width,setWidth] = React.useState(200);
   const [formattingFunctions, setFormattingFunctions] = React.useState([]);
 
   const isSavedToDocument = !!visualizationNodeId;
@@ -249,28 +260,28 @@ const VegaSpec = ({
   function handleEditorDidMount(event, editor) {
     setEditor(editor);
   }
-
+  console.log('resize!',ResizableBox)
   return (
-    <div style={{ width: "100%", height: "250px" }}>
+    <div>
       <span>Vega Spec for Visualization:</span>
-      <ControlledEditor
-        width='300'
-        height='550'
-        language='json'
-        editorDidMount={handleEditorDidMount}
-        options={{
-          formatOnPaste: true,
-          minimap: { enabled: false },
-          lineNumbers: "off",
-          glyphMargin: false,
-          folding: false,
-          // Undocumented see https://github.com/Microsoft/vscode/issues/30795#issuecomment-410998882
-        }}
-        value={JSON.stringify(currentSpec, undefined, 2)}
-        onChange={(ev, value) => {
-          onPreview(value);
-        }}
-      />
+      <ResizableBox width={300} height={600} axis={"x"} handleSize={[8,8]} resizeHandles={['e']}>
+        <ControlledEditor
+          language='json'
+          editorDidMount={handleEditorDidMount}
+          options={{
+            formatOnPaste: true,
+            minimap: { enabled: false },
+            lineNumbers: "off",
+            glyphMargin: false,
+            folding: false,
+            // Undocumented see https://github.com/Microsoft/vscode/issues/30795#issuecomment-410998882
+          }}
+          value={JSON.stringify(currentSpec, undefined, 2)}
+          onChange={(ev, value) => {
+            onPreview(value);
+          }}
+        />
+      </ResizableBox>
 
       <button id='create' onClick={onCreate}>
         {isSavedToDocument ? "Update" : "Create"}
@@ -284,7 +295,7 @@ const VegaSpec = ({
 
 const Visualization = ({ errorMessage }) => {
   return (
-    <div style={{ width: "100%", height: "250px", overflow: "scroll" }}>
+    <div style={{ width: "100%", height: "100%", overflow: "scroll" }}>
       {errorMessage && (
         <div style={{ color: "#D8000C", backgroundColor: "#FFBABA", border: 0, padding: "10px" }}>
           {errorMessage}
