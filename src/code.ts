@@ -202,7 +202,7 @@ figma.ui.onmessage = (msg) => {
       console.log("modifying path", vectorizedNodes);
 
       const vectorPaths = vectorizedNodes.map((vectorizedNode) => {
-        return { nodeId: vectorizedNode.id, vectorPath: vectorizedNode.vectorPaths };
+        return { nodeId: vectorizedNode.id, vectorPaths: vectorizedNode.vectorPaths };
       });
 
       figma.ui.postMessage({
@@ -223,7 +223,7 @@ figma.ui.onmessage = (msg) => {
     if (viewNode) {
       const visaulizationPaddingWidth = Number(viewNode.getPluginData("vegaPaddingWidth"));
       const visaulizationPaddingHeight = Number(viewNode.getPluginData("vegaPaddingHeight"));
-      const parsedSpecs = svgNodes.map((svgNode) => {
+      const marks = svgNodes.map((svgNode) => {
         const { svgString, nodeId } = svgNode;
         const vectorizedNode = figma.getNodeById(nodeId);
 
@@ -271,7 +271,7 @@ figma.ui.onmessage = (msg) => {
         return parsedSpec;
       });
 
-      figma.ui.postMessage({ annotationSpec: parsedSpecs, viewId: viewId, type: "finishedMarks" });
+      figma.ui.postMessage({ annotationSpec: {"marks":marks}, viewId: viewId, type: "finishedMarks" });
     }
   } else if (msg.type === "startUp") {
     // scan through document to find all nodes with plugin data type matching vega view

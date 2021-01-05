@@ -4,6 +4,9 @@ import * as reactRedux from "react-redux";
 import store from "./redux/store";
 import { addView, editView } from "./redux/actions";
 import { Provider, connect } from "react-redux";
+//@ts-ignore
+import ReactNotification from "react-notifications-component";
+import "react-notifications-component/dist/theme.css";
 
 //@ts-ignore
 import * as svgpath from "svgpath";
@@ -85,14 +88,12 @@ onmessage = (event) => {
       payload: {
         viewId: viewId,
         view: {
-          annotationSpec: annotationSpec
+          annotationSpec: annotationSpec,
         },
       },
     };
 
     store.dispatch(addAnnotation);
-
-
 
     // I can add this to update redux state
   } else if (event.data.pluginMessage.type === pluginTypes.startUpViews) {
@@ -107,8 +108,8 @@ onmessage = (event) => {
     // add views data to redux store.
   } else if (event.data.pluginMessage.type === pluginTypes.finishedCreate) {
     // add the figma node id for the vega view
-    const {viewNodeId,annotationNodeId,visualizationNodeId,viewId} = event.data.pluginMessage;
-    
+    const { viewNodeId, annotationNodeId, visualizationNodeId, viewId } = event.data.pluginMessage;
+
     const alterActions = {
       type: "ALTER_VEGA_VIEW",
       payload: {
@@ -168,6 +169,8 @@ const AppWithRedux = ({ views, dispatch }) => {
 
   return (
     <div>
+      <ReactNotification />
+
       {!selectedViewId && (
         <Overview onViewSelect={onViewSelect} onCreateView={onCreateView} views={views}></Overview>
       )}

@@ -1,6 +1,9 @@
 import * as React from "react";
 import * as ReactDOM from "react-dom";
 //@ts-ignore
+import { store } from "react-notifications-component";
+
+//@ts-ignore
 import { IconButton, Input, Switch } from "react-figma-ui";
 //@ts-ignore
 import embed from "vega-embed";
@@ -23,24 +26,14 @@ const Editor = ({ view, onBack, onEditView }) => {
     console.log("setting viewSpec", view.viewId, viewName, newSpec);
     onEditView(view.viewId, { visualizationSpec: newSpec });
   }
-  function updateAnnotationSpec(newSpec) {
-    console.log("setting viewSpec", view.viewId, viewName, newSpec);
-    onEditView(view.viewId, { annotationSpec: newSpec });
-  }
+
   function setViewName2(newName) {
     onEditView(view.viewId, { viewName: newName });
   }
 
   function onFetch() {
-    const textToWrite = 'Look it copied'!;
     //    navigator.clipboard.writeText(textToWrite);
 
-    var dummy = document.createElement("input");
-  document.body.appendChild(dummy);
-  dummy.setAttribute("value", textToWrite);
-  dummy.select();
-  document.execCommand("copy");
-  document.body.removeChild(dummy);
     // clear current marks
     onEditView(view.viewId, { annotationSpec: { marks: [] } });
     console.log("sending for fetch", view.viewNodeId);
@@ -82,7 +75,7 @@ const Editor = ({ view, onBack, onEditView }) => {
       });
   }
 
-  function onPreview(value, updateType) {
+  function onPreview(value) {
     console.log("preview value", value);
 
     //@ts-ignore
@@ -90,11 +83,8 @@ const Editor = ({ view, onBack, onEditView }) => {
     try {
       const tempSpec = JSON.parse(specString);
       setMessage("");
-      if (updateType === "VISUALIZATION") {
-        updateVisualizationSpec(tempSpec);
-      } else if (updateType === "ANNOTATIONS") {
-        updateAnnotationSpec(tempSpec);
-      }
+      updateVisualizationSpec(tempSpec);
+
       //
     } catch (e) {
       setMessage("Not a valid spec");
@@ -103,12 +93,8 @@ const Editor = ({ view, onBack, onEditView }) => {
 
   React.useEffect(() => {
     console.log("updating vis spec!", JSON.stringify(view.visualizationSpec));
-    const mergedSpec = mergeVisualizationAndAnnotationSpec(
-      view.visualizationSpec,
-      view.annotationSpec
-    );
-    console.log("merged spec", mergedSpec, view.visualizationSpec, view.annotationSpec);
-    const result = embed("#vis", mergedSpec);
+
+    const result = embed("#vis", view.visualizationSpec);
     result.then((embedResult) => {
       console.log(embedResult);
       console.log(embedResult.view);
@@ -123,7 +109,51 @@ const Editor = ({ view, onBack, onEditView }) => {
           console.error(err);
         });
     });
-  }, [view.visualizationSpec, view.annotationSpec]);
+  }, [view.visualizationSpec]);
+
+  React.useEffect(() => {
+    console.log("in annotation use effect", view.annotationSpec);
+    if (view.annotationSpec && view.annotationSpec.marks && view.annotationSpec.marks.length > 0) {
+      // merge specs
+      const mergedSpec = mergeVisualizationAndAnnotationSpec(
+        view.visualizationSpec,
+        view.annotationSpec
+      );
+      console.log("merged!", mergedSpec);
+
+      copyToClipboard(JSON.stringify(mergedSpec, undefined, 2));
+      console.log("about to add notification!");
+      store.addNotification({
+        title: "Annotated Vega Spec Copied!",
+        message: <Text addToEditor={() => {
+          onEditView(view.viewId, { visualizationSpec: mergedSpec });
+        }}/>,
+        
+        /*() => {
+          return ""
+          (
+            <p>
+              .{" "}
+              {/*<span
+                
+                onClick={}>
+                Add it to the editor?
+              </span>}
+            </p>
+          );
+        },*/
+        type: "success",
+        insert: "top",
+        container: "top-full",
+        animationIn: ["animate__animated", "animate__fadeIn"],
+        animationOut: ["animate__animated", "animate__fadeOut"],
+        dismiss: {
+          duration: 3000,
+          onScreen: true,
+        },
+      });
+    }
+  }, [view.annotationSpec]);
 
   return (
     <div>
@@ -158,6 +188,22 @@ const Editor = ({ view, onBack, onEditView }) => {
     </div>
   );
 };
+const Text = ({addToEditor})=>{
+  return <div>Updated Vega specification has been copied to your clipboard. <span style={{ textDecoration: "underline" }} onClick={addToEditor}>Add to Vega Editor?</span></div>
+}
+function copyToClipboard(text) {
+  var dummy = document.createElement("textarea");
+  // to avoid breaking orgain page when copying more words
+  // cant copy when adding below this code
+  // dummy.style.display = 'none'
+  document.body.appendChild(dummy);
+  //Be careful if you use texarea. setAttribute('value', value), which works with "input" does not work with "textarea". – Eduard
+  dummy.value = text;
+  dummy.select();
+  document.execCommand("copy");
+  document.body.removeChild(dummy);
+  console.log("copoied!");
+}
 
 function mergeVisualizationAndAnnotationSpec(visualizationSpec, annotationSpec) {
   // when annotation spec is changed, update visualization spec
@@ -189,17 +235,19 @@ const VegaSpec = ({
   onFetch,
   onPreview,
 }) => {
+  const [editor, setEditor] = React.useState(null);
   const [formattingFunctions, setFormattingFunctions] = React.useState([]);
 
   const isSavedToDocument = !!visualizationNodeId;
 
+  React.useEffect(() => {
+    if (editor) {
+      editor.getAction("editor.action.formatDocument").run();
+    }
+  }, [currentSpec]);
+
   function handleEditorDidMount(event, editor) {
-    const handler = editor.onDidChangeModelDecorations((_) => {
-      handler.dispose();
-      const copy = Object.assign([], formattingFunctions);
-      copy.push(editor.getAction("editor.action.formatDocument").run);
-      setFormattingFunctions(copy);
-    });
+    setEditor(editor);
   }
 
   return (
@@ -207,43 +255,20 @@ const VegaSpec = ({
       <span>Vega Spec for Visualization:</span>
       <ControlledEditor
         width='300'
-        height='300'
+        height='550'
         language='json'
         editorDidMount={handleEditorDidMount}
-        options={{ formatOnPaste: true, minimap: { enabled: false },lineNumbers: 'off',
-        glyphMargin: false,
-        folding: false,
-        // Undocumented see https://github.com/Microsoft/vscode/issues/30795#issuecomment-410998882
-        lineDecorationsWidth: 0,
-        lineNumbersMinChars: 0
-       }}
-        value={JSON.stringify(currentSpec,undefined,2)}
-        onChange={(ev, value) => {
-          onPreview(value, "VISUALIZATION");
-          formattingFunctions.forEach((func) => {
-            func();
-          });
+        options={{
+          formatOnPaste: true,
+          minimap: { enabled: false },
+          lineNumbers: "off",
+          glyphMargin: false,
+          folding: false,
+          // Undocumented see https://github.com/Microsoft/vscode/issues/30795#issuecomment-410998882
         }}
-      />
-      <span>Vega Spec for Annotations:</span>
-      <ControlledEditor
-        width='300'
-        height='100'
-        language='json'
-        editorDidMount={handleEditorDidMount}
-        options={{ formatOnPaste: true, minimap: { enabled: false } ,lineNumbers: 'off',
-        glyphMargin: false,
-        folding: false,
-        // Undocumented see https://github.com/Microsoft/vscode/issues/30795#issuecomment-410998882
-        lineDecorationsWidth: 0,
-        lineNumbersMinChars: 0
-      }}
-        value={JSON.stringify(annotationSpec,undefined,2)}
+        value={JSON.stringify(currentSpec, undefined, 2)}
         onChange={(ev, value) => {
-          onPreview(value, "ANNOTATIONS");
-          formattingFunctions.forEach((func) => {
-            func();
-          });
+          onPreview(value);
         }}
       />
 
@@ -259,11 +284,11 @@ const VegaSpec = ({
 
 const Visualization = ({ errorMessage }) => {
   return (
-    <div style={{ width: "100%", height: "250px", overflow:"scroll" }}>
+    <div style={{ width: "100%", height: "250px", overflow: "scroll" }}>
       {errorMessage && (
         <div style={{ color: "#D8000C", backgroundColor: "#FFBABA", border: 0, padding: "10px" }}>
           {errorMessage}
-          {". Showing last successful visaulization."}
+          {". Showing last successful visualization."}
         </div>
       )}
 
