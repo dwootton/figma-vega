@@ -59,18 +59,39 @@ const Editor = ({ view, onBack, onEditView }) => {
     result
       .then((embedResult) => {
         console.log("embed result", embedResult);
-        parent.postMessage(
-          {
-            pluginMessage: {
-              type: "create",
-              vegaSpec: JSON.stringify(spec),
-              svgToRender: svgString,
-              viewId: visualizationId,
-              name: viewName,
+        if(view.viewNodeId){
+          // update 
+          parent.postMessage(
+            {
+              pluginMessage: {
+                type: "update",
+                vegaSpec: JSON.stringify(spec),
+                svgToRender: svgString,
+                visualizationNodeId: visualizationNodeId,
+                annotationNodeId:view.annotationNodeId,
+                viewNodeId: view.viewNodeId,
+                viewId: view.viewId,
+                viewName: viewName,
+              },
             },
-          },
-          "*"
-        );
+            "*"
+          );
+        } else {
+          // create
+          parent.postMessage(
+            {
+              pluginMessage: {
+                type: "create",
+                vegaSpec: JSON.stringify(spec),
+                svgToRender: svgString,
+                viewId: visualizationId,
+                name: viewName,
+              },
+            },
+            "*"
+          );
+        }
+        
       })
       .catch((err) => {
         console.log("invalid vega spec!", err);

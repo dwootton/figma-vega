@@ -29,50 +29,57 @@ declare function require(path: string): any;
 
 onmessage = (event) => {
   if (event.data.pluginMessage.type === pluginTypes.modifyPath) {
-    const { vectorNodes, viewId, viewNodeId, outlinedStroke } = event.data.pluginMessage;
-
-    const svgNodes = vectorNodes.map((vectorNode) => {
-      const vectorPaths = vectorNode.vectorPaths;
-      const nodeId = vectorNode.nodeId;
-      console.log("vector paths", vectorPaths);
-
-      let pathString: string = vectorPaths.map((path) => path.data).join(" ");
-      // go through, break up by Z
-      // invert every other path
-      // join.
-      //
-
-      // if a object must have been outlined, invert its path for appropriate styling despite "even-odd " fill rule
-      if (outlinedStroke) {
-        let utils = new pathUtils.SVGPathUtils();
-        const paths = pathString.split(/[zZ]/).filter((path) => path !== "");
-
-        // for every other path, inverse it
-        for (let i = 0; i < paths.length; i = i + 2) {
-          paths[i] = utils.inversePath(paths[i]);
+    
+    const { nodeCollection, viewId, viewNodeId } = event.data.pluginMessage;
+    const svgNodeCollection = [];
+    for(const node of nodeCollection){
+      const {vectorizedNodes, outlinedStroke} = node;
+      const svgNodes = vectorizedNodes.map((vectorNode) => {
+        const vectorPaths = vectorNode.vectorPaths;
+        const nodeId = vectorNode.nodeId;
+        console.log("vector paths", vectorPaths);
+  
+        let pathString: string = vectorPaths.map((path) => path.data).join(" ");
+        // go through, break up by Z
+        // invert every other path
+        // join.
+        //
+  
+        // if a object must have been outlined, invert its path for appropriate styling despite "even-odd " fill rule
+        if (outlinedStroke) {
+          let utils = new pathUtils.SVGPathUtils();
+          const paths = pathString.split(/[zZ]/).filter((path) => path !== "");
+  
+          // for every other path, inverse it
+          for (let i = 0; i < paths.length; i = i + 2) {
+            paths[i] = utils.inversePath(paths[i]);
+          }
+  
+          pathString = paths.join("Z ");
         }
+  
+        console.log(pathString);
+  
+        let parsedPath = svgpath(pathString);
+        console.log("untouched path data", parsedPath);
+        const bounds = parsedPath.toBox();
+        const width = bounds.maxX - bounds.minX;
+        const height = bounds.maxY - bounds.minY;
+        const maxDimension = Math.max(width, height);
+        parsedPath = parsedPath.translate(-width / 2, -height / 2).scale(2 / maxDimension);
+        return { nodeId: nodeId, svgString: parsedPath.toString() };
+      });
 
-        pathString = paths.join("Z ");
-      }
-
-      console.log(pathString);
-
-      let parsedPath = svgpath(pathString);
-      console.log("untouched path data", parsedPath);
-      const bounds = parsedPath.toBox();
-      const width = bounds.maxX - bounds.minX;
-      const height = bounds.maxY - bounds.minY;
-      const maxDimension = Math.max(width, height);
-      parsedPath = parsedPath.translate(-width / 2, -height / 2).scale(2 / maxDimension);
-      return { nodeId: nodeId, svgString: parsedPath.toString() };
-    });
+      svgNodeCollection.push(svgNodes);
+    }
+    
     parent.postMessage(
       {
         pluginMessage: {
           type: "sendScaled",
           viewId: viewId,
           viewNodeId: viewNodeId,
-          svgNodes: svgNodes,
+          svgNodeCollection: svgNodeCollection,
         },
       },
       "*"
