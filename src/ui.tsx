@@ -18,14 +18,17 @@ import { processSvg } from "./utils";
 import Editor from "./components/Editor/Editor";
 import Overview from "./components/Overview/Overview";
 import View from "./common/models/view";
+import {convert} from './svgToVega';
 const pluginTypes = Object.freeze({
   modifyPath: "modifyPath",
   finishedMarks: "finishedMarks",
   startUpViews: "startUpViews",
   finishedCreate: "finishedCreate",
+  tester:"tester"
 });
 
 declare function require(path: string): any;
+
 
 onmessage = (event) => {
   if (event.data.pluginMessage.type === pluginTypes.modifyPath) {
@@ -33,20 +36,17 @@ onmessage = (event) => {
     const { nodeCollection, viewId, viewNodeId } = event.data.pluginMessage;
     const svgNodeCollection = [];
     for(const node of nodeCollection){
-      const {vectorizedNodes, outlinedStroke} = node;
+      const {vectorizedNodes, shouldFillBeInverted} = node;
+      console.log('should fill be invert',vectorizedNodes, shouldFillBeInverted);
       const svgNodes = vectorizedNodes.map((vectorNode) => {
         const vectorPaths = vectorNode.vectorPaths;
         const nodeId = vectorNode.nodeId;
         console.log("vector paths", vectorPaths);
   
         let pathString: string = vectorPaths.map((path) => path.data).join(" ");
-        // go through, break up by Z
-        // invert every other path
-        // join.
-        //
   
         // if a object must have been outlined, invert its path for appropriate styling despite "even-odd " fill rule
-        if (outlinedStroke) {
+        if (shouldFillBeInverted) {
           let utils = new pathUtils.SVGPathUtils();
           const paths = pathString.split(/[zZ]/).filter((path) => path !== "");
   
@@ -103,7 +103,9 @@ onmessage = (event) => {
     store.dispatch(addAnnotation);
 
     // I can add this to update redux state
-  } else if (event.data.pluginMessage.type === pluginTypes.startUpViews) {
+  } else if(event.data.pluginMessage.type === pluginTypes.tester){
+    convert(event.data.pluginMessage.svgString);
+  }else if (event.data.pluginMessage.type === pluginTypes.startUpViews) {
     const viewsData = event.data.pluginMessage.viewsData;
     console.log("views data", viewsData);
     for (const view of viewsData) {

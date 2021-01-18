@@ -34,6 +34,7 @@ const Editor = ({ view, onBack, onEditView }) => {
     onEditView(view.viewId, { viewName: newName });
   }
 
+
   function onFetch() {
     //    navigator.clipboard.writeText(textToWrite);
 
@@ -44,6 +45,20 @@ const Editor = ({ view, onBack, onEditView }) => {
       {
         pluginMessage: {
           type: "fetch",
+          annotationNodeId: view.annotationNodeId,
+          viewNodeId: view.viewNodeId,
+          viewId: view.viewId,
+        },
+      },
+      "*"
+    ); //
+  }
+
+  function onFetchSVG(){
+    parent.postMessage(
+      {
+        pluginMessage: {
+          type: "fetchSVG",
           annotationNodeId: view.annotationNodeId,
           viewNodeId: view.viewNodeId,
           viewId: view.viewId,
@@ -210,6 +225,7 @@ const Editor = ({ view, onBack, onEditView }) => {
           visualizationNodeId={visualizationNodeId}
           annotationSpec={annotationSpec}
           onFetch={onFetch}
+          onFetchSVG={onFetchSVG}
           onPreview={onPreview}></VegaSpec>
         <Visualization errorMessage={message}></Visualization>
       </div>
@@ -264,6 +280,7 @@ const VegaSpec = ({
   visualizationNodeId,
   onCreate,
   onFetch,
+  onFetchSVG,
   onPreview,
 }) => {
   const [editor, setEditor] = React.useState(null);
@@ -304,11 +321,14 @@ const VegaSpec = ({
         />
       </ResizableBox>
 
-      <button id='create' onClick={onCreate}>
+      {/*<button id='create' onClick={onCreate}>
         {isSavedToDocument ? "Update" : "Create"}
       </button>
       <button id='fetch' disabled={!isSavedToDocument} onClick={onFetch}>
         Fetch
+        </button>*/}
+      <button id='fetchSVG' disabled={false} onClick={onFetchSVG}>
+        FSVG
       </button>
     </div>
   );

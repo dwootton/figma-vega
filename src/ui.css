@@ -34,7 +34,7 @@ input:focus { box-shadow: inset 0 0 0 2px #18A0FB; }
   border: 1px solid whitesmoke;
   width: 225px;
   height: 50px;
-  background-color: whitesmoke;
+  background-color: white;
   overflow: hidden;
   display: grid;
   grid-template-columns: 50px 100%;
@@ -50,7 +50,7 @@ input:focus { box-shadow: inset 0 0 0 2px #18A0FB; }
 }
 
 .card-body:hover {
-  background-color: rgba(245, 245, 245, 0.4);
+  background-color: rgba(245, 245, 245, 0.9);
 }
 
 .card-image {

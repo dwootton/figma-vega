@@ -247,6 +247,34 @@ figma.ui.onmessage = (msg) => {
 
     
 
+  } else if (msg.type === "fetchSVG"){
+    // Current level: Get all svg export and then convert 
+    //const selectedNodeId = msg.viewNodeId;
+    console.log("fetching node id", msg.viewNodeId);
+    const annotationsId = msg.annotationNodeId;
+    const viewNodeId = msg.viewNodeId;
+    const viewId = msg.viewId;
+
+    // uses a fetch by id
+    //@ts-ignore
+    const annotationsLayer : SceneNode = figma.getNodeById(annotationsId);
+
+    function ab2str(buf) {
+      return String.fromCharCode.apply(null, new Uint16Array(buf));
+    }
+    
+ 
+    // go through for each export get promises
+    // once all promises have e
+    const svgString = annotationsLayer.exportAsync({ format: "SVG" }).then((svgCode)=>{
+      const svg = ab2str(svgCode);
+      console.log('dywootto svg',svg,svgCode);
+      figma.ui.postMessage({
+        svgString: svg,
+        type: "tester",
+      });
+
+    })
   } else if (msg.type === "fetch") {
     //const selectedNodeId = msg.viewNodeId;
     console.log("fetching node id", msg.viewNodeId);
@@ -274,19 +302,24 @@ figma.ui.onmessage = (msg) => {
         continue;
       }
 
-      const node = nodeStep.value.clone();
+      const node : SceneNode= nodeStep.value.clone();
 
+      
       console.log("node value", node);
-      // if nodeType is group
-      const vectorizedSceneNode = vectorize(node);
+     
 
-      const vectorizedNodes = vectorizedSceneNode.map((vectorizedNode) => {
+      // if nodeType is group
+      const vectorizedSceneNodes = vectorize(node);
+      const vectorizedNodes = vectorizedSceneNodes.map((vectorizedNode) => {
         return { nodeId: vectorizedNode.id, vectorPaths: vectorizedNode.vectorPaths };
       });
 
+      // determine if any fills need to be inverted
+      let shouldFillBeInverted = vectorizedSceneNodes.some(determineShouldFillBeInverted);
+
       vectorizedNodePayload.push({
         vectorizedNodes: vectorizedNodes,
-        outlinedStroke: vectorizedNodes.length > 1,
+        shouldFillBeInverted: shouldFillBeInverted,
       });
       nodeStep = nodeIterator.next();
     }
@@ -381,6 +414,12 @@ figma.ui.onmessage = (msg) => {
   // keep running, which shows the cancel button at the bottom of the screen.
   //figma.closePlugin();
 };
+
+function determineShouldFillBeInverted(node: BaseNode){
+
+  const shouldBeInverted =  "strokeAlign" in node && node.strokeAlign !== "CENTER";
+  return shouldBeInverted;
+}
 
 function extractVegaViewData(node: BaseNode) {
   const propertiesToExtract = [
@@ -558,6 +597,7 @@ function shouldNodeBeOutlineStrokes(node: SceneNode) {
 }
 
 function vectorize(node: SceneNode): Array<VectorNode> {
+  //
   const nodesToReturn = [];
   // if node is text, combine all vector paths
   let vectorNode = figma.flatten([node]);

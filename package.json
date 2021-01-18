@@ -45,6 +45,7 @@
     "react-vega-lite": "^6.1.0",
     "redux": "^4.0.5",
     "simplify-js": "^1.2.4",
+    "svg-parser": "^2.0.4",
     "svg-path-bounds": "^1.0.1",
     "svg-path-utils": "0.0.3",
     "svgpath": "github:kpym/SVGPathy",
