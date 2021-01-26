@@ -8,7 +8,6 @@ import {convertTree} from './converterFunctions';
 
 
 function parseSVGString(SVGString){
-  const val = 5;
   
   try {
     return parse(SVGString);
@@ -16,12 +15,15 @@ function parseSVGString(SVGString){
     throw new Error("SVG could not be parsed. Please validate the SVG and try again.")
   }
 }
+
 export function convert(SVGString){
     const root = parseSVGString(SVGString);
 
     if(root instanceof Error){
       return root;
     }
+
+    const matchedVega = convertTree(root);
 
 
   
@@ -33,7 +35,7 @@ export function convert(SVGString){
     // find any element with defs tag name 
 
     console.log('in svg parse',SVGString)
-    return root
+    return matchedVega
 }
 
 
