@@ -36,7 +36,11 @@ export function convertElement(element){
             //@ts-ignore
             base.encode.enter[vegaName] = {"value":vegaValue};   
         }
-    } else if(!element.tagName){
+    } else if(element.tagName === "path"){
+        base = {type:"path","encode": {enter:{}}} ;
+
+    }
+    else if(!element.tagName){
         // do nothing
     }else {
         // element is not currently supported
