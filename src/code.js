@@ -1,4 +1,4 @@
-//@ts-ignore
+ //@ts-ignore
 import SVGPath from "./SVGPaths.js";
 //import {SVGpath, SVGsegs} from './SVGPaths.js';
 // This plugin will open a window to prompt the user to enter a number, and

@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<coverage generated="1611686901516" clover="3.2.0">
+  <project timestamp="1611686901517" name="All files">
+    <metrics statements="11" coveredstatements="10" conditionals="2" coveredconditionals="1" methods="2" coveredmethods="2" elements="15" coveredelements="13" complexity="0" loc="11" ncloc="11" packages="1" files="1" classes="1"/>
+    <file name="svgToVega.ts" path="/Users/dylanwootton/Documents/Figma Plugin/Vega-fi/src/svgToVega/svgToVega.ts">
+      <metrics statements="11" coveredstatements="10" conditionals="2" coveredconditionals="1" methods="2" coveredmethods="2"/>
+      <line num="2" count="1" type="stmt"/>
+      <line num="11" count="3" type="stmt"/>
+      <line num="13" count="3" type="stmt"/>
+      <line num="14" count="3" type="stmt"/>
+      <line num="16" count="2" type="stmt"/>
+      <line num="19" count="1" type="stmt"/>
+      <line num="20" count="3" type="stmt"/>
+      <line num="22" count="1" type="cond" truecount="1" falsecount="1"/>
+      <line num="23" count="0" type="stmt"/>
+      <line num="35" count="1" type="stmt"/>
+      <line num="36" count="1" type="stmt"/>
+    </file>
+  </project>
+</coverage>

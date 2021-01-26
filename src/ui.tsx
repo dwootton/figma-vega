@@ -1,10 +1,12 @@
 import * as React from "react";
 import * as ReactDOM from "react-dom";
-import * as paper from "paper";
 import * as reactRedux from "react-redux";
 import store from "./redux/store";
-import {addView,editView} from "./redux/actions";
+import { addView, editView } from "./redux/actions";
 import { Provider, connect } from "react-redux";
+//@ts-ignore
+import ReactNotification from "react-notifications-component";
+import "react-notifications-component/dist/theme.css";
 
 //@ts-ignore
 import * as svgpath from "svgpath";
@@ -13,98 +15,120 @@ import * as pathUtils from "svg-path-utils";
 import "./ui.css";
 import { processSvg } from "./utils";
 
-import Editor from './components/Editor/Editor';
-import Overview from './components/Overview/Overview';
+import Editor from "./components/Editor/Editor";
+import Overview from "./components/Overview/Overview";
+import View from "./common/models/view";
+import {convert} from './svgToVega/svgToVega';
 const pluginTypes = Object.freeze({
   modifyPath: "modifyPath",
   finishedMarks: "finishedMarks",
   startUpViews: "startUpViews",
   finishedCreate: "finishedCreate",
+  tester:"tester"
 });
 
 declare function require(path: string): any;
 
+
 onmessage = (event) => {
   if (event.data.pluginMessage.type === pluginTypes.modifyPath) {
-    const vectorPaths = event.data.pluginMessage.data;
-    console.log("vector paths", vectorPaths);
+    
+    const { nodeCollection, viewId, viewNodeId } = event.data.pluginMessage;
+    const svgNodeCollection = [];
+    for(const node of nodeCollection){
+      const {vectorizedNodes, shouldFillBeInverted} = node;
+      console.log('should fill be invert',vectorizedNodes, shouldFillBeInverted);
+      const svgNodes = vectorizedNodes.map((vectorNode) => {
+        const vectorPaths = vectorNode.vectorPaths;
+        const nodeId = vectorNode.nodeId;
+        console.log("vector paths", vectorPaths);
+  
+        let pathString: string = vectorPaths.map((path) => path.data).join(" ");
+  
+        // if a object must have been outlined, invert its path for appropriate styling despite "even-odd " fill rule
+        if (shouldFillBeInverted) {
+          let utils = new pathUtils.SVGPathUtils();
+          const paths = pathString.split(/[zZ]/).filter((path) => path !== "");
+  
+          // for every other path, inverse it
+          for (let i = 0; i < paths.length; i = i + 2) {
+            paths[i] = utils.inversePath(paths[i]);
+          }
+  
+          pathString = paths.join("Z ");
+        }
+  
+        console.log(pathString);
+  
+        let parsedPath = svgpath(pathString);
+        console.log("untouched path data", parsedPath);
+        const bounds = parsedPath.toBox();
+        const width = bounds.maxX - bounds.minX;
+        const height = bounds.maxY - bounds.minY;
+        const maxDimension = Math.max(width, height);
+        parsedPath = parsedPath.translate(-width / 2, -height / 2).scale(2 / maxDimension);
+        return { nodeId: nodeId, svgString: parsedPath.toString() };
+      });
 
-    let pathString: string = vectorPaths.map((path) => path.data).join(" ");
-    // go through, break up by Z
-    // invert every other path
-    // join.
-    //
-
-    // if a object must have been outlined, invert its path for appropriate styling despite "even-odd " fill rule
-    if (event.data.pluginMessage.outlinedStroke) {
-      let utils = new pathUtils.SVGPathUtils();
-      const paths = pathString.split(/[zZ]/).filter((path) => path !== "");
-
-      // for every other path, inverse it
-      for (let i = 0; i < paths.length; i = i + 2) {
-        paths[i] = utils.inversePath(paths[i]);
-      }
-
-      pathString = paths.join("Z ");
+      svgNodeCollection.push(svgNodes);
     }
-
-    console.log(pathString);
-
-    let parsedPath = svgpath(pathString);
-    console.log("untouched path data", parsedPath);
-    const bounds = parsedPath.toBox();
-    const width = bounds.maxX - bounds.minX;
-    const height = bounds.maxY - bounds.minY;
-    const maxDimension = Math.max(width, height);
-    parsedPath = parsedPath.translate(-width / 2, -height / 2).scale(2 / maxDimension);
-    const scaledSVGString = parsedPath.toString();
-    console.log(scaledSVGString);
+    
     parent.postMessage(
       {
         pluginMessage: {
           type: "sendScaled",
-          viewNodeId: event.data.pluginMessage.viewNodeId,
-          nodeId: event.data.pluginMessage.nodeId,
-          object: scaledSVGString,
+          viewId: viewId,
+          viewNodeId: viewNodeId,
+          svgNodeCollection: svgNodeCollection,
         },
       },
       "*"
     );
   } else if (event.data.pluginMessage.type === pluginTypes.finishedMarks) {
-    const specString = event.data.pluginMessage.specString;
-    console.log(event.data.pluginMessage.specString);
+    const { viewId, annotationSpec } = event.data.pluginMessage;
+
+    // add the figma node id for the vega view
+    console.log("changed spec", annotationSpec);
+
+    const addAnnotation = {
+      type: "ALTER_VEGA_VIEW",
+      payload: {
+        viewId: viewId,
+        view: {
+          annotationSpec: annotationSpec,
+        },
+      },
+    };
+
+    store.dispatch(addAnnotation);
+
     // I can add this to update redux state
-  } else if (event.data.pluginMessage.type === pluginTypes.startUpViews) {
+  } else if(event.data.pluginMessage.type === pluginTypes.tester){
+    convert(event.data.pluginMessage.svgString);
+  }else if (event.data.pluginMessage.type === pluginTypes.startUpViews) {
     const viewsData = event.data.pluginMessage.viewsData;
     console.log("views data", viewsData);
     for (const view of viewsData) {
-      const addAction = { type: "ADD_VEGA_VIEW", payload: { viewData: view } };
-
+      const parsedView = new View(view);
+      const addAction = { type: "ADD_VEGA_VIEW", payload: { viewData: parsedView } };
       store.dispatch(addAction);
     }
-
-    const propertiesToExtract = [
-      "visualizationSpec",
-      "annotationSpec",
-      "vegaPaddingWidth",
-      "vegaPaddingHeight",
-      "annotationsId",
-      "visualizationId",
-    ];
 
     // add views data to redux store.
   } else if (event.data.pluginMessage.type === pluginTypes.finishedCreate) {
     // add the figma node id for the vega view
-    const viewNodeId = event.data.pluginMessage.viewNodeId;
-    const annotationsNodeId = event.data.pluginMessage.annotationsNodeId;
-    const visualizationNodeId = event.data.pluginMessage.visualizationNodeId;
+    const { viewNodeId, annotationNodeId, visualizationNodeId, viewId } = event.data.pluginMessage;
 
-    const viewId = event.data.pluginMessage.viewId;
-
-    console.log("created Node Id", viewId, viewNodeId);
     const alterActions = {
       type: "ALTER_VEGA_VIEW",
-      payload: { viewId: viewId, view: { viewNodeId: viewNodeId, annotationsNodeId: annotationsNodeId,visualizationNodeId:visualizationNodeId} },
+      payload: {
+        viewId: viewId,
+        view: {
+          viewNodeId: viewNodeId,
+          annotationNodeId: annotationNodeId,
+          visualizationNodeId: visualizationNodeId,
+        },
+      },
     };
 
     store.dispatch(alterActions);
@@ -124,21 +148,20 @@ const AppWithRedux = ({ views, dispatch }) => {
     setSelectedViewId(null);
   }
   function onViewSelect(viewId) {
-    console.log('moving to selected view!',viewId)
+    console.log("moving to selected view!", viewId);
     setSelectedViewId(viewId);
   }
-  console.log('views',views);
+  console.log("views", JSON.parse(JSON.stringify(views)));
 
-  function onCreateView(viewData){
-    console.log('creating view',JSON.parse(JSON.stringify(viewData)) );
-    
+  function onCreateView(viewData) {
+    console.log("creating view", JSON.parse(JSON.stringify(viewData)));
+
     dispatch(addView(viewData));
   }
 
   function onEditView(id, alteredView) {
-    console.log('editing view',id, alteredView)
+    console.log("editing view", id, JSON.stringify(alteredView));
     dispatch(editView(id, alteredView));
-
   }
 
   // fetch vega views from the scenegraph and populate redux store.
@@ -155,7 +178,11 @@ const AppWithRedux = ({ views, dispatch }) => {
 
   return (
     <div>
-      {!selectedViewId && <Overview onViewSelect={onViewSelect} onCreateView={onCreateView} views={views}></Overview>}
+      <ReactNotification />
+
+      {!selectedViewId && (
+        <Overview onViewSelect={onViewSelect} onCreateView={onCreateView} views={views}></Overview>
+      )}
       {selectedViewId && (
         <Editor
           onBack={onBack}
@@ -171,13 +198,12 @@ const AppWithRedux = ({ views, dispatch }) => {
 // return all nodes + annotation layers
 
 const mapStateToProps = (state) => {
-  console.log('mapping state to props',state);
+  console.log("mapping state to props", state);
   const views = state.vegaViews;
   return { views };
 };
 
 const App = connect(mapStateToProps)(AppWithRedux);
-
 
 ReactDOM.render(
   <Provider store={store}>
