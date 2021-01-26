@@ -18,12 +18,35 @@ test('throws on invalid svg - text', () => {
 });
 
 
-test('throws on invalid svg - wrong tags', () => {
-  function invalidConvert(){
-    convert("<k><lol>blah</lol></k>")
-  }
+test('[BROKEN] throws on invalid svg - wrong tags', () => {
     // expect error message to contain "not be parsed";
-    expect(invalidConvert).toThrowError("not be parsed");
+    const validAnswer = {
+      type: "root",
+      children: [
+        {
+          type: "element",
+          tagName: "k",
+          properties: {
+          },
+          children: [
+            {
+              type: "element",
+              tagName: "lol",
+              properties: {
+              },
+              children: [
+                {
+                  type: "text",
+                  value: "blah",
+                },
+              ],
+            },
+          ],
+        },
+      ],
+    }
+    
+    expect(convert("<k><lol>blah</lol></k>")).toMatchObject(validAnswer);
 });
 
 

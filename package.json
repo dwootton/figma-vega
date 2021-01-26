@@ -5,7 +5,7 @@
   "main": "code.js",
   "scripts": {
     "build": "tsc -p tsconfig.json",
-    "test": "jest --coverage --no-cache --config ./jest.config.json",
+    "test": "jest --no-cache --config ./jest.config.json",
     "test:nocover": "jest --config ./jest.config.json",
     "test:watch": "jest --watch --config ./jest.config.json",
     "build:debug": "tsc -p ./tsconfig.debug.json --pretty"
@@ -30,6 +30,8 @@
     "webpack-cli": "^4.2.0"
   },
   "dependencies": {
+    "@babel/plugin-transform-modules-commonjs": "^7.12.1",
+    "@babel/preset-typescript": "^7.12.7",
     "@monaco-editor/react": "^3.7.4",
     "@types/react-redux": "^7.1.14",
     "@types/redux": "^3.6.0",

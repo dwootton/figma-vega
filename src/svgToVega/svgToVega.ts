@@ -33,7 +33,7 @@ export function convert(SVGString){
     // find any element with defs tag name 
 
     console.log('in svg parse',SVGString)
-    return "5"
+    return root
 }
 
 
