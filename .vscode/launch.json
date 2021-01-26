@@ -1,0 +1,21 @@
+{
+    "version": "0.2.0",
+    "configurations": [
+        {
+            "type": "node",
+            "request": "launch",
+            "name": "Debug Tests",
+            "preLaunchTask": "debugBuild",
+            "program": "${workspaceRoot}\\node_modules\\jest\\bin\\jest.js",
+            "args": [
+                "--runInBand",
+                "--config",
+                "${workspaceRoot}\\config\\jest.debug.json"
+            ],
+            "sourceMaps": true,
+            "outFiles": [
+                "${workspaceRoot}/output/debug/**/*"
+            ]
+        }
+    ]
+}
