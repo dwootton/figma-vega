@@ -104,7 +104,7 @@ onmessage = (event) => {
 
     // I can add this to update redux state
   } else if(event.data.pluginMessage.type === pluginTypes.tester){
-    convert(event.data.pluginMessage.svgString);
+    convert(event.data.pluginMessage.svgString,{width:-event.data.pluginMessage.vegaPaddingWidth,height:-event.data.pluginMessage.vegaPaddingHeight});
   }else if (event.data.pluginMessage.type === pluginTypes.startUpViews) {
     const viewsData = event.data.pluginMessage.viewsData;
     console.log("views data", viewsData);

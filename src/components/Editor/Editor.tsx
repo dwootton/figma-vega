@@ -321,12 +321,12 @@ const VegaSpec = ({
         />
       </ResizableBox>
 
-      {/*<button id='create' onClick={onCreate}>
+      <button id='create' onClick={onCreate}>
         {isSavedToDocument ? "Update" : "Create"}
       </button>
       <button id='fetch' disabled={!isSavedToDocument} onClick={onFetch}>
         Fetch
-        </button>*/}
+        </button>
       <button id='fetchSVG' disabled={false} onClick={onFetchSVG}>
         FSVG
       </button>

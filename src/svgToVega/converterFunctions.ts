@@ -1,6 +1,6 @@
 
-export function convertTree(root){
-    return walkTree(root,convertElement);
+export function convertTree(root,offsets){
+    return walkTree(root,(element)=>convertElement(element,offsets));
      
 }
 
@@ -9,7 +9,7 @@ function selfReplication (value){
 }
 
 const SVG_TO_VEGA_MAPPING = Object.freeze({
-
+    "d":{name:"path",valueTransform:(val)=>val}
 });
 
 function mapSvgToVegaProperties(svgPropertyName,svgPropertyValue){
@@ -17,36 +17,65 @@ function mapSvgToVegaProperties(svgPropertyName,svgPropertyValue){
     if(SVG_TO_VEGA_MAPPING[svgPropertyName]){
         // transform property name and value
         name = SVG_TO_VEGA_MAPPING[svgPropertyName].name;
-        value = SVG_TO_VEGA_MAPPING[svgPropertyName].valueMapper(svgPropertyValue);
+        value = SVG_TO_VEGA_MAPPING[svgPropertyName].valueTransform(svgPropertyValue);
     }
     return [name,value];
 }
-interface IRectVegaSpec {
+interface IGeometryVegaSpec {
     type:String,
-    encode:Object,
+    encode:{enter:Object},
 }
-export function convertElement(element){
+
+function offsetElement(spec,offsets){
+    if(spec.encode.enter){
+        let xOffset = spec.encode.enter?.['x']?.value ? spec.encode.enter['x'].value : 0;
+        xOffset += offsets.width
+
+        let yOffset = spec.encode.enter?.['y']?.value ? spec.encode.enter['y'].value : 0;
+        yOffset += offsets.height
+
+        spec.encode.enter['x'] = {value:xOffset};
+        spec.encode.enter['y'] = {value:yOffset};
+    }
+    return spec;
+}
+export function convertElement(element,offsets){
     let base = {};
     if(element.tagName === "rect"){
-        base = {type:"rect","encode": {enter:{}}} ;
-        base = base as IRectVegaSpec;
+        let rectSpec : IGeometryVegaSpec = {type:"rect","encode": {enter:{}}};
         // transform the property into the vega version
         for(const [svgPropertyName, svgPropertyValue] of Object.entries(element.properties)){
             const [vegaName, vegaValue] = mapSvgToVegaProperties(svgPropertyName, svgPropertyValue);
-            //@ts-ignore
-            base.encode.enter[vegaName] = {"value":vegaValue};   
+            rectSpec.encode.enter[vegaName] = {"value":vegaValue};   
         }
-    } else if(element.tagName === "path"){
-        base = {type:"path","encode": {enter:{}}} ;
+        rectSpec = offsetElement(rectSpec,offsets)
+        Object.assign(base,rectSpec);
 
+
+    } else if(element.tagName === "path"){
+        console.log(offsets);
+        let pathSpec : IGeometryVegaSpec = {type:"path","encode": {enter:{"path":"",}}} ;
+        // transform the property into the vega version
+        for(const [svgPropertyName, svgPropertyValue] of Object.entries(element.properties)){
+            const [vegaName, vegaValue] = mapSvgToVegaProperties(svgPropertyName, svgPropertyValue);
+            pathSpec.encode.enter[vegaName] = {"value":vegaValue};   
+        }
+        pathSpec = offsetElement(pathSpec,offsets);
+        Object.assign(base,pathSpec);
     }
     else if(!element.tagName){
         // do nothing
+        console.log('no tag name',element);
+    } else if(element.tagName === "svg" || element.type === "root"){
+        //do nothing
     }else {
         // element is not currently supported
-        throw new Error('An invalid tag name was found, please use svg with only valid tags.')
+        console.log('invalid element:',element)
+        throw new Error(`An invalid tag name was found (${element.tagName}), please use svg with only valid tags.`)
     }
     // if element is def tag, stop 
+    
+
     return base;
   }
 

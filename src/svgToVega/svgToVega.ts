@@ -16,14 +16,14 @@ function parseSVGString(SVGString){
   }
 }
 
-export function convert(SVGString){
+export function convert(SVGString, offsets = {width:0,height:0}){
     const root = parseSVGString(SVGString);
 
     if(root instanceof Error){
       return root;
     }
 
-    const matchedVega = convertTree(root);
+    const matchedVega = convertTree(root,offsets);
 
 
   
@@ -34,7 +34,7 @@ export function convert(SVGString){
     // for each def, create a 
     // find any element with defs tag name 
 
-    console.log('in svg parse',SVGString)
+    console.log('in svg parse',matchedVega, JSON.stringify(matchedVega))
     return matchedVega
 }
 

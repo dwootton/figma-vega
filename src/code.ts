@@ -254,6 +254,11 @@ figma.ui.onmessage = (msg) => {
     const annotationsId = msg.annotationNodeId;
     const viewNodeId = msg.viewNodeId;
     const viewId = msg.viewId;
+    //@ts-ignore
+    const viewNode : SceneNode = figma.getNodeById(viewNodeId);
+    
+    const vegaPaddingWidth = viewNode.getPluginData("vegaPaddingWidth")
+    const vegaPaddingHeight = viewNode.getPluginData("vegaPaddingHeight")
 
     // uses a fetch by id
     //@ts-ignore
@@ -263,14 +268,16 @@ figma.ui.onmessage = (msg) => {
       return String.fromCharCode.apply(null, new Uint16Array(buf));
     }
     
- 
+    // BUG: combine all texts into one path object
     // go through for each export get promises
-    // once all promises have e
+    // for each value, export it as async
     const svgString = annotationsLayer.exportAsync({ format: "SVG" }).then((svgCode)=>{
       const svg = ab2str(svgCode);
       console.log('dywootto svg',svg,svgCode);
       figma.ui.postMessage({
         svgString: svg,
+        vegaPaddingHeight:vegaPaddingHeight,
+        vegaPaddingWidth:vegaPaddingWidth,
         type: "tester",
       });
 
@@ -502,8 +509,10 @@ function calculateFillSpecs(node: VectorNode) {
   if (node.fills && node.fills[0] && node.fills[0].visible) {
     //@ts-ignore wrong typings ?
     const color = node.fills[0].color;
-    console.log("colors", color.r, color.g, color.b, rgbPercentToHex(color.r, color.g, color.b));
-    attributes.push(`"fill": {"value": "${rgbPercentToHex(color.r, color.g, color.b)}"}`);
+    if(color && color.r !== undefined && color.g !== undefined && color.b !== undefined){
+      attributes.push(`"fill": {"value": "${rgbPercentToHex(color.r, color.g, color.b)}"}`);
+
+    }
 
     if (node.fills[0].opacity) {
       attributes.push(`"fillOpacity": {"value": ${node.fills[0].opacity}}`);
@@ -521,9 +530,10 @@ function calculateStrokeSpecs(node: VectorNode) {
   if (node.strokes && node.strokes.length > 0) {
     //@ts-ignore wrong typings ?
     const color = node.strokes[0].color;
-    console.log("colors", color.r, color.g, color.b, rgbPercentToHex(color.r, color.g, color.b));
+    if(color && color.r !== undefined && color.g !== undefined && color.b !== undefined){
+      attributes.push(`"stroke": {"value": "${rgbPercentToHex(color.r, color.g, color.b)}"}`);
 
-    attributes.push(`"stroke": {"value": "${rgbPercentToHex(color.r, color.g, color.b)}"}`);
+    }
 
     if (node.strokes[0].opacity) {
       attributes.push(`"strokeOpacity": {"value": ${node.strokes[0].opacity}}`);
