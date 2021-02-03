@@ -9,7 +9,7 @@ function selfReplication (value){
 }
 
 const SVG_TO_VEGA_MAPPING = Object.freeze({
-    "d":{name:"path",valueTransform:(val)=>val}
+    "d":{name:"path",valueTransform:selfReplication}
 });
 
 function mapSvgToVegaProperties(svgPropertyName,svgPropertyValue){
@@ -39,6 +39,7 @@ function offsetElement(spec,offsets){
     }
     return spec;
 }
+
 export function convertElement(element,offsets){
     let base = {};
     if(element.tagName === "rect"){
@@ -50,8 +51,6 @@ export function convertElement(element,offsets){
         }
         rectSpec = offsetElement(rectSpec,offsets)
         Object.assign(base,rectSpec);
-
-
     } else if(element.tagName === "path"){
         console.log(offsets);
         let pathSpec : IGeometryVegaSpec = {type:"path","encode": {enter:{"path":"",}}} ;
@@ -62,12 +61,19 @@ export function convertElement(element,offsets){
         }
         pathSpec = offsetElement(pathSpec,offsets);
         Object.assign(base,pathSpec);
+    } else if(element.type === "root"){
+       
     }
-    else if(!element.tagName){
-        // do nothing
-        console.log('no tag name',element);
-    } else if(element.tagName === "svg" || element.type === "root"){
-        //do nothing
+     else if(element.tagName === "svg"){
+        //render an annotations node
+        interface IRootNode {
+            type:string,
+            marks:Array<any>
+        }
+        let rootSpec : IRootNode = {type:"group",marks:[]} ;
+        // TODO: move all element offsets inside of here?
+        Object.assign(base,rootSpec);
+        
     }else {
         // element is not currently supported
         console.log('invalid element:',element)
@@ -102,14 +108,29 @@ function walkTree(node,transformationFunc){
     // filter out null updates
     // add in any child nodes as updates to the object itself. 
         // ie gradients update the value
-        
+    // if node is a svg node, add children as marks?
     if(node.children){
         const rawUpdates = node.children.map(child=>walkTree(child,transformationFunc));
         const updates = rawUpdates.filter(update=>!!update);
+
+        // if update is a mark, append it to transformedNode's marks property, else update
+        // copy over any old marks
         // update the original node according to the transform.
         updates.forEach(update=>{
-            transformedNode = Object.assign(transformedNode,update);
+            if(isMarkType(update)){
+                if(transformedNode.marks){
+                    transformedNode.marks.push(update);
+                } else {
+                    transformedNode.marks = [update];
+                }
+            } else {
+                transformedNode = Object.assign(transformedNode,update);
+            }
         })
     }
     return transformedNode;
+}
+
+function isMarkType(element){
+    return true;
 }
