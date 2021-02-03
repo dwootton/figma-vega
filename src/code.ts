@@ -94,7 +94,6 @@ figma.ui.onmessage = (msg) => {
   // One way of distinguishing between different types of messages sent from
   // your HTML page is to use an object with a "type" property like this.
 
-  figma.root.children;
   if (msg.type === "create") {
     // TODO: cast as a create msg type
     const nodes: SceneNode[] = [];
@@ -170,7 +169,7 @@ figma.ui.onmessage = (msg) => {
     });
   }  else if (msg.type === "update"){
     const {visualizationNodeId,annotationNodeId,viewNodeId,viewId,viewName,vegaSpec,svgToRender} = msg;
-
+    console.log()
     // delete old vis
     figma.getNodeById(visualizationNodeId).remove();
 
@@ -275,6 +274,7 @@ figma.ui.onmessage = (msg) => {
       const svg = ab2str(svgCode);
       console.log('dywootto svg',svg,svgCode);
       figma.ui.postMessage({
+        viewId:viewId,
         svgString: svg,
         vegaPaddingHeight:vegaPaddingHeight,
         vegaPaddingWidth:vegaPaddingWidth,

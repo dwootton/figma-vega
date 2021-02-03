@@ -55,6 +55,8 @@ const Editor = ({ view, onBack, onEditView }) => {
   }
 
   function onFetchSVG(){
+    onEditView(view.viewId, { annotationSpec: { marks: [] } });
+
     parent.postMessage(
       {
         pluginMessage: {
