@@ -99,12 +99,27 @@ onmessage = (event) => {
         },
       },
     };
+    console.log('OLD SPEC',addAnnotation)
 
     store.dispatch(addAnnotation);
 
     // I can add this to update redux state
   } else if(event.data.pluginMessage.type === pluginTypes.tester){
-    convert(event.data.pluginMessage.svgString);
+    const viewId = event.data.pluginMessage.viewId;
+    const annotationSpec = convert(event.data.pluginMessage.svgString,{width:-event.data.pluginMessage.vegaPaddingWidth,height:-event.data.pluginMessage.vegaPaddingHeight});
+    const addAnnotation = {
+      type: "ALTER_VEGA_VIEW",
+      payload: {
+        viewId: viewId,
+        view: {
+          annotationSpec: annotationSpec,
+        },
+      },
+    };
+    console.log('NEW SPEC',addAnnotation)
+
+
+    store.dispatch(addAnnotation);
   }else if (event.data.pluginMessage.type === pluginTypes.startUpViews) {
     const viewsData = event.data.pluginMessage.viewsData;
     console.log("views data", viewsData);
