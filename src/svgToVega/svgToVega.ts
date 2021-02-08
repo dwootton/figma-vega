@@ -17,8 +17,16 @@ function parseSVGString(SVGString){
 }
 
 export function convert(SVGString, offsets = {width:0,height:0}){
+    // process defs 
+      // for each def, add it to a hashmap based on 
+      // if id that is node's name
+      // if url or use is referenced, that's a link
+    
     const root = parseSVGString(SVGString);
-
+    
+    // transform so defs are child elements of their parent
+    // if element has a reference
+    
     if(root instanceof Error){
       return root;
     }

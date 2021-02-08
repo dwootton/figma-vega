@@ -117,6 +117,7 @@ function walkTree(node,transformationFunc){
         // copy over any old marks
         // update the original node according to the transform.
         updates.forEach(update=>{
+            //if update.update function exists, 
             if(isMarkType(update)){
                 if(transformedNode.marks){
                     transformedNode.marks.push(update);
