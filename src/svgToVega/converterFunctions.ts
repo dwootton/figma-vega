@@ -1,6 +1,8 @@
 //@ts-ignore
 import {matchObjectsInHierarchy} from "./utils";
+//@ts-ignore
 import {cloneDeep,merge} from "lodash";
+
 function stopFunction(element) {
   // don't process defs (should have already been visited already)
   return element?.tagName === "defs";
