@@ -63,6 +63,11 @@ const SVG_TO_VEGA_MAPPING = Object.freeze({
     valueTransform: selfReplication,
     type: PROPERTY_TYPES.aesthetic,
   },
+  "xlink:href": {
+    vegaId:"url",
+    valueTransform:selfReplication,
+    type:PROPERTY_TYPES.aesthetic
+  }
 });
 
 function mapSvgToVegaProperties(svgPropertyName, svgPropertyValue) {
@@ -115,6 +120,15 @@ export function convertElement(element, offsets, root) {
     }
     pathSpec = offsetElement(pathSpec, offsets);
     Object.assign(base, pathSpec);
+  } else if (element.tagName === "image") {
+    let rectSpec: IGeometryVegaSpec = { type: "image", encode: { enter: {} } };
+    // transform the property into the vega version
+    for (const [svgPropertyName, svgPropertyValue] of Object.entries(element.properties)) {
+      const [vegaName, vegaValue] = mapSvgToVegaProperties(svgPropertyName, svgPropertyValue);
+      rectSpec.encode.enter[vegaName] = { value: vegaValue };
+    }
+    rectSpec = offsetElement(rectSpec, offsets);
+    Object.assign(base, rectSpec);
   } else if(element.tagName==='pattern' || element.tagName==='use'){
     // let linking handle it
   } else if(element.type==='root'){
@@ -181,7 +195,7 @@ function mergeReferencedElements(original, reference) {
 }
 
 // matches the id of an object in a href or a url reference
-const URL_OR_HREF_ID_REGEX_MATCH = /((?<=href": "#)([a-zA-Z0-9]+)|(?<=url\(#)([a-zA-Z0-9]+))/;
+const URL_OR_HREF_ID_REGEX_MATCH = /((?<=href":"#)([a-zA-Z0-9]+)|(?<=url\(#)([a-zA-Z0-9]+))/;
 
 /**
  * Extracts the first id found to a reference for this object.
