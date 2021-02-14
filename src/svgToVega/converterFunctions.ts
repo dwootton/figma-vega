@@ -1,6 +1,6 @@
 //@ts-ignore
 import {matchObjectsInHierarchy} from "./utils";
-import _ from "lodash";
+import {cloneDeep,merge} from "lodash";
 function stopFunction(element) {
   // don't process defs (should have already been visited already)
   return element?.tagName === "defs";
@@ -133,7 +133,10 @@ export function convertElement(element, offsets, root) {
     // let linking handle it
   } else if(element.type==='root'){
 
-  } else if (element.tagName === "svg") {
+  } else if(element.tagName==='defs' ){
+    // early return so defs don't get processed for references
+    return base;
+  }else if (element.tagName === "svg") {
     //render an annotations node
     interface IRootNode {
       type: string;
@@ -175,14 +178,14 @@ export function convertElement(element, offsets, root) {
 }
 
 function mergeReferencedElements(original, reference) {
-  const clonedOriginal = _.cloneDeep(original);
-  let merged = _.merge(clonedOriginal, reference);
+  const clonedOriginal = cloneDeep(original);
+  let merged = merge(clonedOriginal, reference);
 
   for (const propertyId in SVG_TO_VEGA_MAPPING) {
     const propertyMetaData = SVG_TO_VEGA_MAPPING[propertyId];
     // overwrite any layout properties with corresponding parent values
     if (propertyMetaData.type === PROPERTY_TYPES.layout) {
-      if (original.encode.enter[propertyMetaData.vegaId]) {
+      if (original?.encode?.enter[propertyMetaData.vegaId]) {
         merged.encode.enter[propertyMetaData.vegaId] =
           original.encode.enter[propertyMetaData.vegaId];
       }
@@ -265,6 +268,8 @@ function walkTree(node, transformationFunc, stoppingFunction) {
   return transformedNode;
 }
 
+
 function isMarkType(element) {
-  return true;
+  // if element has properties
+  return Object.keys(element).length > 0;
 }

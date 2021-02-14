@@ -60,7 +60,7 @@ test.only('renders a rect', () => {
         }
       };
 
-    expect().toMatchObject(vegaRect)
+    expect(result).toMatchObject(returnVal)
 });
 
 
