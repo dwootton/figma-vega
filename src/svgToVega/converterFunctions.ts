@@ -32,16 +32,6 @@ const SVG_TO_VEGA_MAPPING = Object.freeze({
   width: { vegaId: "width", valueTransform: selfReplication, type: PROPERTY_TYPES.layout },
   height: { vegaId: "height", valueTransform: selfReplication, type: PROPERTY_TYPES.layout },
   // Aesthetic properties (do not affect layout)
-  "stop-color": {
-    vegaId: "color",
-    valueTransform: selfReplication,
-    type: PROPERTY_TYPES.aesthetic,
-  },
-  "stop-color": {
-    vegaId: "color",
-    valueTransform: selfReplication,
-    type: PROPERTY_TYPES.aesthetic,
-  },
 
   fill: { vegaId: "fill", valueTransform: selfReplication, type: PROPERTY_TYPES.aesthetic },
   "fill-opacity": {
@@ -112,7 +102,7 @@ function offsetElement(spec, offsets) {
   return spec;
 }
 
-export function convertElement(element, offsets, root) {
+export function convertElement(element, offsets, root, parentRef=null) {
   let base = {};
   if (element.tagName === "rect") {
     let rectSpec: IGeometryVegaSpec = { type: "rect", encode: { enter: {} } };
@@ -143,33 +133,18 @@ export function convertElement(element, offsets, root) {
     rectSpec = offsetElement(rectSpec, offsets);
     Object.assign(base, rectSpec);
   } else if (element.tagName === "radialGradient" || element.tagName === "linearGradient") {
+    console.log(element);
     let gradientType = element.tagName === "linearGradient" ? "linear" : "radial";
-    let gradientSpec = { gradient: gradientType, stops: [] };
+    let gradientSpec = {"gradient": gradientType, stops: [] };
+    
     gradientSpec.stops = extractStops(element);
-    function extractStops(gradientElement) {
-      let stops = [];
-      for (const child of gradientElement.children) {
-        if (child.tagName === "stop") {
-          // extract rgba color:
-          let [r, g, b] = parseColor(child.properties["stop-color"]),
-            a = 1;
-          if (child.properties["stop-opacity"]) {
-            a = child.properties["stop-opacity"];
-          }
-          const color = `rgba(${r},${b},${g},${a})`;
+    // TODO: you must extract c1 
+    // 
+    const normalizedBounds = calculateNormalizedBoundingBox(element,parentRef)
+    Object.assign(gradientSpec,normalizedBounds)
 
-          let offset = 0;
-          // extract offset
-          if (child.properties["offset"]) {
-            offset = child.properties["offset"];
-          }
-          const stop = { offset: offset, color: color };
-          stops.push(stop);
-        }
-      }
-      return stops;
-    }
-    Object.assign(base, gradientSpec);
+    const nestedSpec = {"encode":{"enter":{"fill":{"value":gradientSpec}}}}
+    Object.assign(base, nestedSpec);
   } else if (element.tagName === "pattern" || element.tagName === "use") {
     // let linking handle it
   } else if (element.type === "root") {
@@ -202,7 +177,7 @@ export function convertElement(element, offsets, root) {
         (node) => node && node.properties && node.properties.id === referenceId
       );
       if (referencedElements && referencedElements.length > 0) {
-        const convertedElement = convertElement(referencedElements[0], offsets, root);
+        const convertedElement = convertElement(referencedElements[0], offsets, root,element);
         base = mergeReferencedElements(base, convertedElement);
       }
     } catch (err) {
@@ -235,7 +210,7 @@ function mergeReferencedElements(original, reference) {
 }
 
 // matches the id of an object in a href or a url reference
-const URL_OR_HREF_ID_REGEX_MATCH = /((?<=href":"#)([a-zA-Z0-9]+)|(?<=url\(#)([a-zA-Z0-9]+))/;
+const URL_OR_HREF_ID_REGEX_MATCH = /((?<=href":"#)([a-zA-Z0-9_]+)|(?<=url\(#)([a-zA-Z0-9_]+))/;
 
 /**
  * Extracts the first id found to a reference for this object.
@@ -312,6 +287,8 @@ function isMarkType(element) {
   return Object.keys(element).length > 0;
 }
 
+
+// Gradient Utils
 function parseColor(input) {
   var div = document.createElement("div"),
     m;
@@ -319,4 +296,54 @@ function parseColor(input) {
   m = getComputedStyle(div).color.match(/^rgb\s*\(\s*(\d+)\s*,\s*(\d+)\s*,\s*(\d+)\s*\)$/i);
   if (m) return [m[1], m[2], m[3]];
   else throw new Error("Colour " + input + " could not be parsed.");
+}
+
+
+function calculateNormalizedBoundingBox(gradientElement,boundingElement){
+  // extract x,y,width,height from bounding
+  const boundingX = extractProperty('x',boundingElement),
+  boundingY = extractProperty('y',boundingElement),
+  boundingWidth = extractProperty('width',boundingElement),
+  boundingHeight = extractProperty('height',boundingElement);
+
+  const elementX1 = extractProperty('x1',gradientElement),
+  elementX2 = extractProperty('x2',gradientElement),
+  elementY1 = extractProperty('y1',gradientElement),
+  elementY2 = extractProperty('y2',gradientElement);
+
+  const x1 = (elementX1 - boundingX)/boundingWidth;
+  const x2 = (elementX2 - boundingX)/boundingWidth;
+  const y1 = (elementY1 - boundingY)/boundingHeight;
+  const y2 = (elementY2 - boundingY)/boundingHeight;
+  return {x1,x2,y1,y2};
+}
+
+function extractProperty(property,elementToExtractFrom){
+  //TODO BUG:       // if width or height and path tagName, use path data to calculate width or height
+
+  return elementToExtractFrom.properties[property];
+}
+//parent has all 
+function extractStops(gradientElement) {
+  let stops = [];
+  for (const child of gradientElement.children) {
+    if (child.tagName === "stop") {
+      // extract rgba color:
+      let [r, g, b] = parseColor(child.properties["stop-color"]),
+        a = 1;
+      if (child.properties["stop-opacity"]) {
+        a = child.properties["stop-opacity"];
+      }
+      const color = `rgba(${r},${b},${g},${a})`;
+
+      let offset = 0;
+      // extract offset
+      if (child.properties["offset"]) {
+        offset = child.properties["offset"];
+      }
+      const stop = { offset: offset, color: color };
+      stops.push(stop);
+    }
+  }
+  return stops;
 }
