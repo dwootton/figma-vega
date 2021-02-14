@@ -1,7 +1,7 @@
 //@ts-ignore
-import {matchObjectsInHierarchy} from "./utils";
+import { matchObjectsInHierarchy } from "./utils";
 //@ts-ignore
-import {cloneDeep,merge} from "lodash";
+import { cloneDeep, merge } from "lodash";
 
 function stopFunction(element) {
   // don't process defs (should have already been visited already)
@@ -32,6 +32,17 @@ const SVG_TO_VEGA_MAPPING = Object.freeze({
   width: { vegaId: "width", valueTransform: selfReplication, type: PROPERTY_TYPES.layout },
   height: { vegaId: "height", valueTransform: selfReplication, type: PROPERTY_TYPES.layout },
   // Aesthetic properties (do not affect layout)
+  "stop-color": {
+    vegaId: "color",
+    valueTransform: selfReplication,
+    type: PROPERTY_TYPES.aesthetic,
+  },
+  "stop-color": {
+    vegaId: "color",
+    valueTransform: selfReplication,
+    type: PROPERTY_TYPES.aesthetic,
+  },
+
   fill: { vegaId: "fill", valueTransform: selfReplication, type: PROPERTY_TYPES.aesthetic },
   "fill-opacity": {
     vegaId: "fillOpacity",
@@ -66,10 +77,10 @@ const SVG_TO_VEGA_MAPPING = Object.freeze({
     type: PROPERTY_TYPES.aesthetic,
   },
   "xlink:href": {
-    vegaId:"url",
-    valueTransform:selfReplication,
-    type:PROPERTY_TYPES.aesthetic
-  }
+    vegaId: "url",
+    valueTransform: selfReplication,
+    type: PROPERTY_TYPES.aesthetic,
+  },
 });
 
 function mapSvgToVegaProperties(svgPropertyName, svgPropertyValue) {
@@ -131,14 +142,41 @@ export function convertElement(element, offsets, root) {
     }
     rectSpec = offsetElement(rectSpec, offsets);
     Object.assign(base, rectSpec);
-  } else if(element.tagName==='pattern' || element.tagName==='use'){
-    // let linking handle it
-  } else if(element.type==='root'){
+  } else if (element.tagName === "radialGradient" || element.tagName === "linearGradient") {
+    let gradientType = element.tagName === "linearGradient" ? "linear" : "radial";
+    let gradientSpec = { gradient: gradientType, stops: [] };
+    gradientSpec.stops = extractStops(element);
+    function extractStops(gradientElement) {
+      let stops = [];
+      for (const child of gradientElement.children) {
+        if (child.tagName === "stop") {
+          // extract rgba color:
+          let [r, g, b] = parseColor(child.properties["stop-color"]),
+            a = 1;
+          if (child.properties["stop-opacity"]) {
+            a = child.properties["stop-opacity"];
+          }
+          const color = `rgba(${r},${b},${g},${a})`;
 
-  } else if(element.tagName==='defs' ){
+          let offset = 0;
+          // extract offset
+          if (child.properties["offset"]) {
+            offset = child.properties["offset"];
+          }
+          const stop = { offset: offset, color: color };
+          stops.push(stop);
+        }
+      }
+      return stops;
+    }
+    Object.assign(base, gradientSpec);
+  } else if (element.tagName === "pattern" || element.tagName === "use") {
+    // let linking handle it
+  } else if (element.type === "root") {
+  } else if (element.tagName === "defs") {
     // early return so defs don't get processed for references
     return base;
-  }else if (element.tagName === "svg") {
+  } else if (element.tagName === "svg") {
     //render an annotations node
     interface IRootNode {
       type: string;
@@ -163,17 +201,14 @@ export function convertElement(element, offsets, root) {
         root,
         (node) => node && node.properties && node.properties.id === referenceId
       );
-      if(referencedElements && referencedElements.length > 0){
-         const convertedElement = convertElement(referencedElements[0], offsets, root);
-      base = mergeReferencedElements(base, convertedElement);
+      if (referencedElements && referencedElements.length > 0) {
+        const convertedElement = convertElement(referencedElements[0], offsets, root);
+        base = mergeReferencedElements(base, convertedElement);
       }
-     
-    } catch (err){
+    } catch (err) {
       let val = 5;
       let vl = 5;
     }
-    
-
   }
 
   return base;
@@ -217,7 +252,9 @@ function extractReferenceId(element) {
 }
 
 function isReference(element) {
-  if(element.tagName === "svg" || element.type === "root") { return false}
+  if (element.tagName === "svg" || element.type === "root") {
+    return false;
+  }
   return extractReferenceId(element) !== null;
 }
 
@@ -270,8 +307,16 @@ function walkTree(node, transformationFunc, stoppingFunction) {
   return transformedNode;
 }
 
-
 function isMarkType(element) {
   // if element has properties
   return Object.keys(element).length > 0;
+}
+
+function parseColor(input) {
+  var div = document.createElement("div"),
+    m;
+  div.style.color = input;
+  m = getComputedStyle(div).color.match(/^rgb\s*\(\s*(\d+)\s*,\s*(\d+)\s*,\s*(\d+)\s*\)$/i);
+  if (m) return [m[1], m[2], m[3]];
+  else throw new Error("Colour " + input + " could not be parsed.");
 }
