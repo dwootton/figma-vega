@@ -132,7 +132,6 @@ export function convertElement(element, offsets, root, parentRef = null) {
         },
       },
     };
-    const val = convertCircleToPath(element);
     // transform the property into the vega version
     for (const [svgPropertyName, svgPropertyValue] of Object.entries(element.properties)) {
       // don't transfer circle layout properties
@@ -168,8 +167,6 @@ export function convertElement(element, offsets, root, parentRef = null) {
     let gradientSpec = { gradient: gradientType, stops: [] };
 
     gradientSpec.stops = extractStops(element);
-    // TODO: you must extract c1
-    //
     const normalizedBounds = calculateNormalizedBoundingBox(element, parentRef);
     Object.assign(gradientSpec, normalizedBounds);
 
@@ -373,16 +370,10 @@ function extractStops(gradientElement) {
 
 // Circle utils
 function getCircularPath(cx, cy, rx, ry) {
-  var kappa = 0.5522847498;
-  var ox = rx * kappa; // x offset for the control point
-  var oy = ry * kappa; // y offset for the control point
-  let d = `M${cx - rx},${cy}`;
-  d += `C${cx - rx}, ${cy - oy}, ${cx - ox}, ${cy - ry}, ${cx}, ${cy - ry},`;
-  d += `C${cx + ox}, ${cy - ry}, ${cx + rx}, ${cy - oy}, ${cx + rx}, ${cy},`;
-  d += `C${cx + rx}, ${cy + oy}, ${cx + ox}, ${cy + ry}, ${cx}, ${cy + ry},`;
-  d += `C${cx - ox}, ${cy + ry}, ${cx - rx}, ${cy + oy}, ${cx - rx}, ${cy},`;
-  d += `z`;
-  return d;
+  let output = "M" + (cx-rx).toString() + "," + cy.toString();
+		output += "a" + rx.toString() + "," + ry.toString() + " 0 1,0 " + (2 * rx).toString() + ",0";
+		output += "a" + rx.toString() + "," + ry.toString() + " 0 1,0 " + (-2 * rx).toString() + ",0Z";
+  return output;
 }
 
 /**
