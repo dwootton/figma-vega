@@ -92,14 +92,15 @@ test.only('tests linear gradients',()=>{
                         "x1":"0",
                         "x2":"0",
                         "y1":"0",
-                        "y2":"1"
+                        "y2":"1",
+                        "value": "url(#paint0_linear)"
                     }
                 }
             }
         }]
     }
     ]}
-    
+
     const result = convert(input);
 
     expect(result).toMatchObject(returnVal)

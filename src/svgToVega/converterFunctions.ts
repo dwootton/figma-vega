@@ -3,6 +3,9 @@ import { matchObjectsInHierarchy } from "./utils";
 //@ts-ignore
 import { cloneDeep, merge } from "lodash";
 
+//@ts-ignore
+import {get} from "color-string";
+
 function stopFunction(element) {
   // don't process defs (should have already been visited already)
   return element?.tagName === "defs";
@@ -288,17 +291,7 @@ function isMarkType(element) {
 }
 
 
-// Gradient Utils
-function parseColor(input) {
-  var div = document.createElement("div"),
-    m;
-  div.style.color = input;
-  m = getComputedStyle(div).color.match(/^rgb\s*\(\s*(\d+)\s*,\s*(\d+)\s*,\s*(\d+)\s*\)$/i);
-  if (m) return [m[1], m[2], m[3]];
-  else throw new Error("Colour " + input + " could not be parsed.");
-}
-
-
+// Gradient Util
 function calculateNormalizedBoundingBox(gradientElement,boundingElement){
   // extract x,y,width,height from bounding
   const boundingX = extractProperty('x',boundingElement),
@@ -329,12 +322,14 @@ function extractStops(gradientElement) {
   for (const child of gradientElement.children) {
     if (child.tagName === "stop") {
       // extract rgba color:
-      let [r, g, b] = parseColor(child.properties["stop-color"]),
-        a = 1;
+      let colorInfo = get(child.properties["stop-color"]),
+        alpha = 1;
+      const [r,g,b,colorAlpha] = colorInfo.value;
       if (child.properties["stop-opacity"]) {
-        a = child.properties["stop-opacity"];
+        alpha = child.properties["stop-opacity"];
       }
-      const color = `rgba(${r},${b},${g},${a})`;
+      // replace initialAlpha
+      const color = `rgba(${r},${b},${g},${alpha*colorAlpha})`;
 
       let offset = 0;
       // extract offset
