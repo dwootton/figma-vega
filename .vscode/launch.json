@@ -5,12 +5,13 @@
             "type": "node",
             "request": "launch",
             "name": "Debug Tests",
+            "console": "integratedTerminal",
             "preLaunchTask": "debugBuild",
-            "program": "${workspaceRoot}\\node_modules\\jest\\bin\\jest.js",
+            "program": "${workspaceRoot}/node_modules/jest/bin/jest.js",
             "args": [
                 "--runInBand",
                 "--config",
-                "${workspaceRoot}\\config\\jest.debug.json"
+                "${workspaceRoot}/jest.config.json"
             ],
             "sourceMaps": true,
             "outFiles": [

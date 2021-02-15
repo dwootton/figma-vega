@@ -42,7 +42,6 @@ export function convert(SVGString, offsets = {width:0,height:0}){
     // for each def, create a 
     // find any element with defs tag name 
 
-    console.log('in svg parse',matchedVega, JSON.stringify(matchedVega))
     return matchedVega
 }
 
