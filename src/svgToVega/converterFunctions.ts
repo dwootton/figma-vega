@@ -25,63 +25,55 @@ const PROPERTY_TYPES = Object.freeze({
 });
 
 const SVG_TO_VEGA_MAPPING = Object.freeze({
-  d: { vegaId: "path",  type: PROPERTY_TYPES.layout },
-  x1: { vegaId: "x1",  type: PROPERTY_TYPES.layout },
-  x2: { vegaId: "x2",  type: PROPERTY_TYPES.layout },
-  y1: { vegaId: "y1",  type: PROPERTY_TYPES.layout },
-  y2: { vegaId: "y2",  type: PROPERTY_TYPES.layout },
-  cx: { vegaId: "cx",  type: PROPERTY_TYPES.layout },
-  cy: { vegaId: "cy",  type: PROPERTY_TYPES.layout },
-  r: {
-    vegaId: "size",
-    valueTransform: (radius) => {
-      // the area of the bounding box for the circle is diameter squared.
-      return radius * 2 * (radius * 2);
-    },
-    type: PROPERTY_TYPES.layout,
-  },
-  x: { vegaId: "x",  type: PROPERTY_TYPES.layout },
-  y: { vegaId: "y",  type: PROPERTY_TYPES.layout },
-  width: { vegaId: "width",  type: PROPERTY_TYPES.layout },
-  height: { vegaId: "height",  type: PROPERTY_TYPES.layout },
+  d: { vegaId: "path", type: PROPERTY_TYPES.layout },
+  x1: { vegaId: "x1", type: PROPERTY_TYPES.layout },
+  x2: { vegaId: "x2", type: PROPERTY_TYPES.layout },
+  y1: { vegaId: "y1", type: PROPERTY_TYPES.layout },
+  y2: { vegaId: "y2", type: PROPERTY_TYPES.layout },
+  cx: { vegaId: "cx", type: PROPERTY_TYPES.layout },
+  cy: { vegaId: "cy", type: PROPERTY_TYPES.layout },
+  x: { vegaId: "x", type: PROPERTY_TYPES.layout },
+  y: { vegaId: "y", type: PROPERTY_TYPES.layout },
+  width: { vegaId: "width", type: PROPERTY_TYPES.layout },
+  height: { vegaId: "height", type: PROPERTY_TYPES.layout },
   // Aesthetic properties (do not affect layout)
 
-  fill: { vegaId: "fill",  type: PROPERTY_TYPES.aesthetic },
+  fill: { vegaId: "fill", type: PROPERTY_TYPES.aesthetic },
   "fill-opacity": {
     vegaId: "fillOpacity",
-    
+
     type: PROPERTY_TYPES.aesthetic,
   },
-  opacity: { vegaId: "opacity",  type: PROPERTY_TYPES.aesthetic },
-  stroke: { vegaId: "stroke",  type: PROPERTY_TYPES.aesthetic },
+  opacity: { vegaId: "opacity", type: PROPERTY_TYPES.aesthetic },
+  stroke: { vegaId: "stroke", type: PROPERTY_TYPES.aesthetic },
   "stroke-opacity": {
     vegaId: "strokeOpacity",
-    
+
     type: PROPERTY_TYPES.aesthetic,
   },
   "stroke-linecap": {
     vegaId: "strokeCap",
-    
+
     type: PROPERTY_TYPES.aesthetic,
   },
   "stroke-width": {
     vegaId: "strokeWeight",
-    
+
     type: PROPERTY_TYPES.aesthetic,
   },
   "stroke-dasharray": {
     vegaId: "strokeDash",
-    
+
     type: PROPERTY_TYPES.aesthetic,
   },
   "stroke-miterlimit": {
     vegaId: "strokeMiterLimit",
-    
+
     type: PROPERTY_TYPES.aesthetic,
   },
   "xlink:href": {
     vegaId: "url",
-    
+
     type: PROPERTY_TYPES.aesthetic,
   },
 });
@@ -92,9 +84,9 @@ function mapSvgToVegaProperties(svgPropertyName, svgPropertyValue) {
   if (SVG_TO_VEGA_MAPPING[svgPropertyName]) {
     // transform property name and value
     name = SVG_TO_VEGA_MAPPING[svgPropertyName].vegaId;
-    
+
     value = svgPropertyValue;
-    if(SVG_TO_VEGA_MAPPING[svgPropertyName].valueTransform){
+    if (SVG_TO_VEGA_MAPPING[svgPropertyName].valueTransform) {
       value = SVG_TO_VEGA_MAPPING[svgPropertyName].valueTransform(svgPropertyValue);
     }
   }
@@ -130,22 +122,29 @@ export function convertElement(element, offsets, root, parentRef = null) {
     }
     rectSpec = offsetElement(rectSpec, offsets);
     Object.assign(base, rectSpec);
-  } else if (element.tagName === "circle") {
-    let rectSpec: IGeometryVegaSpec = {
-      type: "symbol",
+  } else if (element.tagName === "circle" || element.tagName === "ellipse") {
+    // Vega spec  doesn't support circle elements, must convert the circle to a path and render as a path
+    let circleSpec: IGeometryVegaSpec = {
+      type: "path",
       encode: {
         enter: {
-          shape: "circle",
+          path: { value: convertCircleToPath(element) },
         },
       },
     };
+    const val = convertCircleToPath(element);
     // transform the property into the vega version
     for (const [svgPropertyName, svgPropertyValue] of Object.entries(element.properties)) {
+      // don't transfer circle layout properties
+      if (["r", "rx", "ry", "cx", "cy"].includes(svgPropertyName)) {
+        continue;
+      }
       const [vegaName, vegaValue] = mapSvgToVegaProperties(svgPropertyName, svgPropertyValue);
-      rectSpec.encode.enter[vegaName] = { value: vegaValue };
+      circleSpec.encode.enter[vegaName] = { value: vegaValue };
     }
-    rectSpec = offsetElement(rectSpec, offsets);
-    Object.assign(base, rectSpec);
+
+    circleSpec = offsetElement(circleSpec, offsets);
+    Object.assign(base, circleSpec);
   } else if (element.tagName === "path") {
     let pathSpec: IGeometryVegaSpec = { type: "path", encode: { enter: { path: "" } } };
     // transform the property into the vega version
@@ -340,8 +339,10 @@ function calculateNormalizedBoundingBox(gradientElement, boundingElement) {
 
 function extractProperty(property, elementToExtractFrom) {
   //TODO BUG:       // if width or height and path tagName, use path data to calculate width or height
-
-  return elementToExtractFrom.properties[property];
+  if (elementToExtractFrom.properties[property]) {
+    return elementToExtractFrom.properties[property];
+  }
+  return null;
 }
 //parent has all
 function extractStops(gradientElement) {
@@ -368,4 +369,36 @@ function extractStops(gradientElement) {
     }
   }
   return stops;
+}
+
+// Circle utils
+function getCircularPath(cx, cy, rx, ry) {
+  var kappa = 0.5522847498;
+  var ox = rx * kappa; // x offset for the control point
+  var oy = ry * kappa; // y offset for the control point
+  let d = `M${cx - rx},${cy}`;
+  d += `C${cx - rx}, ${cy - oy}, ${cx - ox}, ${cy - ry}, ${cx}, ${cy - ry},`;
+  d += `C${cx + ox}, ${cy - ry}, ${cx + rx}, ${cy - oy}, ${cx + rx}, ${cy},`;
+  d += `C${cx + rx}, ${cy + oy}, ${cx + ox}, ${cy + ry}, ${cx}, ${cy + ry},`;
+  d += `C${cx - ox}, ${cy + ry}, ${cx - rx}, ${cy + oy}, ${cx - rx}, ${cy},`;
+  d += `z`;
+  return d;
+}
+
+/**
+ * Utility method to convert the circle element into a path string
+ * @param element
+ */
+function convertCircleToPath(element) {
+  let cx = extractProperty("cx", element),
+    cy = extractProperty("cy", element),
+    rx = extractProperty("rx", element),
+    ry = extractProperty("ry", element),
+    r = extractProperty("r", element);
+  if (r) {
+    rx = r;
+    ry = r;
+  }
+
+  return getCircularPath(cx, cy, rx, ry);
 }
