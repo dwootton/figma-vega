@@ -117,7 +117,6 @@ export function convertElement(element, offsets, root, parentRef=null) {
     rectSpec = offsetElement(rectSpec, offsets);
     Object.assign(base, rectSpec);
   } else if (element.tagName === "path") {
-    console.log(offsets);
     let pathSpec: IGeometryVegaSpec = { type: "path", encode: { enter: { path: "" } } };
     // transform the property into the vega version
     for (const [svgPropertyName, svgPropertyValue] of Object.entries(element.properties)) {
@@ -136,7 +135,6 @@ export function convertElement(element, offsets, root, parentRef=null) {
     rectSpec = offsetElement(rectSpec, offsets);
     Object.assign(base, rectSpec);
   } else if (element.tagName === "radialGradient" || element.tagName === "linearGradient") {
-    console.log(element);
     let gradientType = element.tagName === "linearGradient" ? "linear" : "radial";
     let gradientSpec = {"gradient": gradientType, stops: [] };
     
@@ -325,7 +323,7 @@ function extractStops(gradientElement) {
       let colorInfo = get(child.properties["stop-color"]),
         alpha = 1;
       const [r,g,b,colorAlpha] = colorInfo.value;
-      if (child.properties["stop-opacity"]) {
+      if (child.properties["stop-opacity"] !== undefined) {
         alpha = child.properties["stop-opacity"];
       }
       // replace initialAlpha

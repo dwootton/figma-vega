@@ -26,7 +26,6 @@ interface Annotation {}
 export default function (state = initialState, action) {
   switch (action.type) {
     case ADD_VEGA_VIEW: {
-      console.log("adding vega view", JSON.stringify(action), JSON.stringify(state));
 
       return [...state, action.payload.viewData];
     }
@@ -34,7 +33,6 @@ export default function (state = initialState, action) {
       const { viewId, view } = action.payload;
       const currentViewsCopy = [...state];
       const viewIndex = currentViewsCopy.findIndex((view) => view.viewId === viewId);
-      console.log(currentViewsCopy, viewId, view, action);
       if (viewIndex > -1) {
         const copyValue = Object.assign({}, currentViewsCopy[viewIndex]);
         currentViewsCopy[viewIndex] = Object.assign(copyValue, view);
