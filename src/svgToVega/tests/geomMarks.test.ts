@@ -61,8 +61,8 @@ test("renders a circle", () => {
 });
 
 test("renders an ellipse", () => {
-  const basicCircleSVG = `<svg>
-  <circle cx="305" cy="373" rx="36" ry="24"  fill="#C4C4C4"></circle>
+  const ellipseSVG = `<svg>
+  <circle cx="305" cy="373" rx="36" ry="24" fill="#C4C4C4"></circle>
   </svg>`;
 
   const vegaCircle = {
@@ -88,6 +88,6 @@ test("renders an ellipse", () => {
       },
     ],
   };
-  const returnValue = convert(basicCircleSVG);
+  const returnValue = convert(ellipseSVG);
   expect(returnValue).toMatchObject(vegaCircle);
 });
