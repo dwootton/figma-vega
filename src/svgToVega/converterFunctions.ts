@@ -4,7 +4,7 @@ import { matchObjectsInHierarchy } from "./utils";
 import { cloneDeep, merge } from "lodash";
 
 //@ts-ignore
-import {get} from "color-string";
+import { get } from "color-string";
 
 function stopFunction(element) {
   // don't process defs (should have already been visited already)
@@ -25,53 +25,63 @@ const PROPERTY_TYPES = Object.freeze({
 });
 
 const SVG_TO_VEGA_MAPPING = Object.freeze({
-  d: { vegaId: "path", valueTransform: selfReplication, type: PROPERTY_TYPES.layout },
-  x1: { vegaId: "x1", valueTransform: selfReplication, type: PROPERTY_TYPES.layout },
-  x2: { vegaId: "x2", valueTransform: selfReplication, type: PROPERTY_TYPES.layout },
-  y1: { vegaId: "y1", valueTransform: selfReplication, type: PROPERTY_TYPES.layout },
-  y2: { vegaId: "y2", valueTransform: selfReplication, type: PROPERTY_TYPES.layout },
-  x: { vegaId: "x", valueTransform: selfReplication, type: PROPERTY_TYPES.layout },
-  y: { vegaId: "y", valueTransform: selfReplication, type: PROPERTY_TYPES.layout },
-  width: { vegaId: "width", valueTransform: selfReplication, type: PROPERTY_TYPES.layout },
-  height: { vegaId: "height", valueTransform: selfReplication, type: PROPERTY_TYPES.layout },
+  d: { vegaId: "path",  type: PROPERTY_TYPES.layout },
+  x1: { vegaId: "x1",  type: PROPERTY_TYPES.layout },
+  x2: { vegaId: "x2",  type: PROPERTY_TYPES.layout },
+  y1: { vegaId: "y1",  type: PROPERTY_TYPES.layout },
+  y2: { vegaId: "y2",  type: PROPERTY_TYPES.layout },
+  cx: { vegaId: "cx",  type: PROPERTY_TYPES.layout },
+  cy: { vegaId: "cy",  type: PROPERTY_TYPES.layout },
+  r: {
+    vegaId: "size",
+    valueTransform: (radius) => {
+      // the area of the bounding box for the circle is diameter squared.
+      return radius * 2 * (radius * 2);
+    },
+    type: PROPERTY_TYPES.layout,
+  },
+  x: { vegaId: "x",  type: PROPERTY_TYPES.layout },
+  y: { vegaId: "y",  type: PROPERTY_TYPES.layout },
+  width: { vegaId: "width",  type: PROPERTY_TYPES.layout },
+  height: { vegaId: "height",  type: PROPERTY_TYPES.layout },
   // Aesthetic properties (do not affect layout)
 
-  fill: { vegaId: "fill", valueTransform: selfReplication, type: PROPERTY_TYPES.aesthetic },
+  fill: { vegaId: "fill",  type: PROPERTY_TYPES.aesthetic },
   "fill-opacity": {
     vegaId: "fillOpacity",
-    valueTransform: selfReplication,
+    
     type: PROPERTY_TYPES.aesthetic,
   },
-  opacity: { vegaId: "opacity", valueTransform: selfReplication, type: PROPERTY_TYPES.aesthetic },
-  stroke: { vegaId: "stroke", valueTransform: selfReplication, type: PROPERTY_TYPES.aesthetic },
+  opacity: { vegaId: "opacity",  type: PROPERTY_TYPES.aesthetic },
+  stroke: { vegaId: "stroke",  type: PROPERTY_TYPES.aesthetic },
   "stroke-opacity": {
     vegaId: "strokeOpacity",
-    valueTransform: selfReplication,
+    
     type: PROPERTY_TYPES.aesthetic,
   },
   "stroke-linecap": {
     vegaId: "strokeCap",
-    valueTransform: selfReplication,
+    
     type: PROPERTY_TYPES.aesthetic,
   },
   "stroke-width": {
     vegaId: "strokeWeight",
-    valueTransform: selfReplication,
+    
     type: PROPERTY_TYPES.aesthetic,
   },
   "stroke-dasharray": {
     vegaId: "strokeDash",
-    valueTransform: selfReplication,
+    
     type: PROPERTY_TYPES.aesthetic,
   },
   "stroke-miterlimit": {
     vegaId: "strokeMiterLimit",
-    valueTransform: selfReplication,
+    
     type: PROPERTY_TYPES.aesthetic,
   },
   "xlink:href": {
     vegaId: "url",
-    valueTransform: selfReplication,
+    
     type: PROPERTY_TYPES.aesthetic,
   },
 });
@@ -82,7 +92,11 @@ function mapSvgToVegaProperties(svgPropertyName, svgPropertyValue) {
   if (SVG_TO_VEGA_MAPPING[svgPropertyName]) {
     // transform property name and value
     name = SVG_TO_VEGA_MAPPING[svgPropertyName].vegaId;
-    value = SVG_TO_VEGA_MAPPING[svgPropertyName].valueTransform(svgPropertyValue);
+    
+    value = svgPropertyValue;
+    if(SVG_TO_VEGA_MAPPING[svgPropertyName].valueTransform){
+      value = SVG_TO_VEGA_MAPPING[svgPropertyName].valueTransform(svgPropertyValue);
+    }
   }
   return [name, value];
 }
@@ -105,10 +119,26 @@ function offsetElement(spec, offsets) {
   return spec;
 }
 
-export function convertElement(element, offsets, root, parentRef=null) {
+export function convertElement(element, offsets, root, parentRef = null) {
   let base = {};
   if (element.tagName === "rect") {
     let rectSpec: IGeometryVegaSpec = { type: "rect", encode: { enter: {} } };
+    // transform the property into the vega version
+    for (const [svgPropertyName, svgPropertyValue] of Object.entries(element.properties)) {
+      const [vegaName, vegaValue] = mapSvgToVegaProperties(svgPropertyName, svgPropertyValue);
+      rectSpec.encode.enter[vegaName] = { value: vegaValue };
+    }
+    rectSpec = offsetElement(rectSpec, offsets);
+    Object.assign(base, rectSpec);
+  } else if (element.tagName === "circle") {
+    let rectSpec: IGeometryVegaSpec = {
+      type: "symbol",
+      encode: {
+        enter: {
+          shape: "circle",
+        },
+      },
+    };
     // transform the property into the vega version
     for (const [svgPropertyName, svgPropertyValue] of Object.entries(element.properties)) {
       const [vegaName, vegaValue] = mapSvgToVegaProperties(svgPropertyName, svgPropertyValue);
@@ -136,15 +166,15 @@ export function convertElement(element, offsets, root, parentRef=null) {
     Object.assign(base, rectSpec);
   } else if (element.tagName === "radialGradient" || element.tagName === "linearGradient") {
     let gradientType = element.tagName === "linearGradient" ? "linear" : "radial";
-    let gradientSpec = {"gradient": gradientType, stops: [] };
-    
-    gradientSpec.stops = extractStops(element);
-    // TODO: you must extract c1 
-    // 
-    const normalizedBounds = calculateNormalizedBoundingBox(element,parentRef)
-    Object.assign(gradientSpec,normalizedBounds)
+    let gradientSpec = { gradient: gradientType, stops: [] };
 
-    const nestedSpec = {"encode":{"enter":{"fill":{"value":gradientSpec}}}}
+    gradientSpec.stops = extractStops(element);
+    // TODO: you must extract c1
+    //
+    const normalizedBounds = calculateNormalizedBoundingBox(element, parentRef);
+    Object.assign(gradientSpec, normalizedBounds);
+
+    const nestedSpec = { encode: { enter: { fill: { value: gradientSpec } } } };
     Object.assign(base, nestedSpec);
   } else if (element.tagName === "pattern" || element.tagName === "use") {
     // let linking handle it
@@ -178,7 +208,7 @@ export function convertElement(element, offsets, root, parentRef=null) {
         (node) => node && node.properties && node.properties.id === referenceId
       );
       if (referencedElements && referencedElements.length > 0) {
-        const convertedElement = convertElement(referencedElements[0], offsets, root,element);
+        const convertedElement = convertElement(referencedElements[0], offsets, root, element);
         base = mergeReferencedElements(base, convertedElement);
       }
     } catch (err) {
@@ -288,33 +318,32 @@ function isMarkType(element) {
   return Object.keys(element).length > 0;
 }
 
-
 // Gradient Util
-function calculateNormalizedBoundingBox(gradientElement,boundingElement){
+function calculateNormalizedBoundingBox(gradientElement, boundingElement) {
   // extract x,y,width,height from bounding
-  const boundingX = extractProperty('x',boundingElement),
-  boundingY = extractProperty('y',boundingElement),
-  boundingWidth = extractProperty('width',boundingElement),
-  boundingHeight = extractProperty('height',boundingElement);
+  const boundingX = extractProperty("x", boundingElement),
+    boundingY = extractProperty("y", boundingElement),
+    boundingWidth = extractProperty("width", boundingElement),
+    boundingHeight = extractProperty("height", boundingElement);
 
-  const elementX1 = extractProperty('x1',gradientElement),
-  elementX2 = extractProperty('x2',gradientElement),
-  elementY1 = extractProperty('y1',gradientElement),
-  elementY2 = extractProperty('y2',gradientElement);
+  const elementX1 = extractProperty("x1", gradientElement),
+    elementX2 = extractProperty("x2", gradientElement),
+    elementY1 = extractProperty("y1", gradientElement),
+    elementY2 = extractProperty("y2", gradientElement);
 
-  const x1 = (elementX1 - boundingX)/boundingWidth;
-  const x2 = (elementX2 - boundingX)/boundingWidth;
-  const y1 = (elementY1 - boundingY)/boundingHeight;
-  const y2 = (elementY2 - boundingY)/boundingHeight;
-  return {x1,x2,y1,y2};
+  const x1 = (elementX1 - boundingX) / boundingWidth;
+  const x2 = (elementX2 - boundingX) / boundingWidth;
+  const y1 = (elementY1 - boundingY) / boundingHeight;
+  const y2 = (elementY2 - boundingY) / boundingHeight;
+  return { x1, x2, y1, y2 };
 }
 
-function extractProperty(property,elementToExtractFrom){
+function extractProperty(property, elementToExtractFrom) {
   //TODO BUG:       // if width or height and path tagName, use path data to calculate width or height
 
   return elementToExtractFrom.properties[property];
 }
-//parent has all 
+//parent has all
 function extractStops(gradientElement) {
   let stops = [];
   for (const child of gradientElement.children) {
@@ -322,12 +351,12 @@ function extractStops(gradientElement) {
       // extract rgba color:
       let colorInfo = get(child.properties["stop-color"]),
         alpha = 1;
-      const [r,g,b,colorAlpha] = colorInfo.value;
+      const [r, g, b, colorAlpha] = colorInfo.value;
       if (child.properties["stop-opacity"] !== undefined) {
         alpha = child.properties["stop-opacity"];
       }
       // replace initialAlpha
-      const color = `rgba(${r},${b},${g},${alpha*colorAlpha})`;
+      const color = `rgba(${r},${b},${g},${alpha * colorAlpha})`;
 
       let offset = 0;
       // extract offset
