@@ -1,14 +1,10 @@
 //@ts-ignore
 import { parse } from 'svg-parser';
 
-import {matchObjectsInHierarchy} from './utils';
-
-
-import {convertTree} from './converterFunctions';
+import {convertRecursive} from './converterFunctions';
 
 
 function parseSVGString(SVGString){
-  
   try {
     return parse(SVGString);
   } catch (err){
@@ -17,30 +13,15 @@ function parseSVGString(SVGString){
 }
 
 export function convert(SVGString, offsets = {width:0,height:0}){
-    // process defs 
-      // for each def, add it to a hashmap based on 
-      // if id that is node's name
-      // if url or use is referenced, that's a link
-    
+   // parse SVG from a string into a JSON object with children and properties 
     const root = parseSVGString(SVGString);
-    
-    // transform so defs are child elements of their parent
-    // if element has a reference
     
     if(root instanceof Error){
       return root;
     }
 
-    const matchedVega = convertTree(root,offsets);
-
-
-  
-    //
-    //const defs = matchObjectsInHierarchy(svgRoot,(node)=>node.tagName==="defs");
-    //const convertedVega = convertTree(svgRoot);
-    // have a hashmap  
-    // for each def, create a 
-    // find any element with defs tag name 
+    // convert 
+    const matchedVega = convertRecursive(root,offsets);
 
     return matchedVega
 }
