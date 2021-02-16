@@ -192,6 +192,7 @@ function getCircularPath(cx, cy, rx, ry) {
   let output = "M" + (cx-rx).toString() + "," + cy.toString();
 		output += "a" + rx.toString() + "," + ry.toString() + " 0 1,0 " + (2 * rx).toString() + ",0";
 		output += "a" + rx.toString() + "," + ry.toString() + " 0 1,0 " + (-2 * rx).toString() + ",0";
+    output += "Z";
   return output;
 }
 
