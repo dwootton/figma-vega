@@ -29,7 +29,9 @@ export function convertRecursive(root, offsets) {
 }
 
 interface IBaseSpecification {
-  //TODO finish baseSpecification
+  encode?: {
+    enter? : Object
+  }
 }
 
 export function convertElement(element, offsets, root, parentRef = null) {
@@ -74,8 +76,8 @@ export function convertElement(element, offsets, root, parentRef = null) {
 
   // adjust mark coordinates to match vega chart padding
   if (base && base.encode && base.encode.enter) {
-    const offsetProperties = offsetProperties(base.encode.enter, offsets);
-    base.encode.enter = offsetProperties;
+    const adjustedProperties = offsetProperties(base.encode.enter, offsets);
+    base.encode.enter = adjustedProperties;
   }
 
   // if element is actually a reference, merge base with reference
