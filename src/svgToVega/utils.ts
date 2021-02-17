@@ -95,7 +95,7 @@ export function extractProperty(property, elementToExtractFrom) {
     return null;
   }
 
-export function stopFunction(element) {
+export function stopTraversalFunction(element) {
     // don't process defs (should have already been visited already)
     return element?.tagName === "defs";
 }
