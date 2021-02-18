@@ -6,11 +6,9 @@ import {
   isReference,
   extractReferenceId,
   mergeReferencedElements,
-  mapSvgToVegaProperties,
 } from "./utils";
 
 import {
-  convertProperties,
   generateCircleSpec,
   generateRectSpec,
   generatePathSpec,
@@ -34,6 +32,11 @@ interface IBaseSpecification {
   }
 }
 
+interface IRootNode {
+  type: string;
+  marks: Array<any>;
+}
+
 export function convertElement(element, offsets, root, parentRef = null) {
   let base : IBaseSpecification = {};
   if (element.tagName === "rect") {
@@ -51,22 +54,15 @@ export function convertElement(element, offsets, root, parentRef = null) {
   } else if (element.tagName === "radialGradient" || element.tagName === "linearGradient") {
     const gradientSpec = generateGradientSpec(element,parentRef);
     Object.assign(base, gradientSpec);
-  } else if (element.tagName === "pattern" || element.tagName === "use") {
-    // let linking handle it
-  } else if (element.type === "root") {
-  } else if (element.tagName === "defs") {
+  }  else if (element.tagName === "svg") {
+    let rootSpec: IRootNode = { type: "group", marks: [] };
+    Object.assign(base, rootSpec);
+  } else if (element.tagName === "pattern" || element.tagName === "use" || element.type === "root") {
+    // no vega specification for these elements, let them return an empty object
+  }  else if (element.tagName === "defs") {
     // early return so defs don't get processed for references
     return base;
-  } else if (element.tagName === "svg") {
-    //render an annotations node
-    interface IRootNode {
-      type: string;
-      marks: Array<any>;
-    }
-    let rootSpec: IRootNode = { type: "group", marks: [] };
-    // TODO: move all element offsets inside of here?
-    Object.assign(base, rootSpec);
-  } else {
+  }else {
     // element is not currently supported
     console.log("invalid element:", element);
     throw new Error(

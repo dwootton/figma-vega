@@ -1,52 +1,52 @@
-import { extractProperty,mapSvgToVegaProperties } from "./utils";
+import { extractProperty, mapSvgToVegaProperties } from "./utils";
 // import utility functions
 
 //@ts-ignore
 import { get } from "color-string";
 
 interface IGeometryVegaSpec {
-    type: String;
-    encode: { enter: Object };
-  }
-  export function generateRectSpec(element) {
-    const rectSpec: IGeometryVegaSpec = { type: "rect", encode: { enter: {} } };
-    const rectProperties = convertProperties(element);
-    rectSpec.encode.enter = rectProperties;
-    return rectSpec;
-  }
-  export function generatePathSpec(element) {
-    const pathSpec: IGeometryVegaSpec = { type: "path", encode: { enter: { path: "" } } };
-  
-    const pathProperties = convertProperties(element);
-    pathSpec.encode.enter = pathProperties;
-    return pathSpec;
-  }
-  
-  export function generateImageSpec(element) {
-    let imageSpec: IGeometryVegaSpec = { type: "image", encode: { enter: {} } };
-  
-    const imageProperties = convertProperties(element);
-    imageSpec.encode.enter = imageProperties;
-  
-    return imageSpec;
-  }
-  
-  export function generateGradientSpec(element,parent){
-    let gradientType = element.tagName === "linearGradient" ? "linear" : "radial";
-    let gradientSpec = { gradient: gradientType, stops: [] };
-  
-    gradientSpec.stops = extractStops(element);
-    const normalizedBounds = calculateNormalizedBoundingBox(element, parent);
-    Object.assign(gradientSpec, normalizedBounds);
-  
-    const nestedSpec = { encode: { enter: { fill: { value: gradientSpec } } } };
-  
-    return nestedSpec;
-  }
+  type: String;
+  encode: { enter: Object };
+}
+export function generateRectSpec(element) {
+  const rectSpec: IGeometryVegaSpec = { type: "rect", encode: { enter: {} } };
+  const rectProperties = convertProperties(element.properties);
+  rectSpec.encode.enter = rectProperties;
+  return rectSpec;
+}
+export function generatePathSpec(element) {
+  const pathSpec: IGeometryVegaSpec = { type: "path", encode: { enter: { path: "" } } };
+
+  const pathProperties = convertProperties(element.properties);
+  pathSpec.encode.enter = pathProperties;
+  return pathSpec;
+}
+
+export function generateImageSpec(element) {
+  let imageSpec: IGeometryVegaSpec = { type: "image", encode: { enter: {} } };
+
+  const imageProperties = convertProperties(element.properties);
+  imageSpec.encode.enter = imageProperties;
+
+  return imageSpec;
+}
+
+export function generateGradientSpec(element, parent) {
+  let gradientType = element.tagName === "linearGradient" ? "linear" : "radial";
+  let gradientSpec = { gradient: gradientType, stops: [] };
+
+  gradientSpec.stops = extractStops(element);
+  const normalizedBounds = calculateNormalizedBoundingBox(element, parent);
+  Object.assign(gradientSpec, normalizedBounds);
+
+  const nestedSpec = { encode: { enter: { fill: { value: gradientSpec } } } };
+
+  return nestedSpec;
+}
 /**
- * Calculates the normalized bounding box for a gradient 
- * @param gradientElement 
- * @param boundingElement 
+ * Calculates the normalized bounding box for a gradient
+ * @param gradientElement
+ * @param boundingElement
  */
 export function calculateNormalizedBoundingBox(gradientElement, boundingElement) {
   // extract x,y,width,height from bounding
@@ -69,7 +69,7 @@ export function calculateNormalizedBoundingBox(gradientElement, boundingElement)
 
 /**
  * Parses <stop> svg elements and converts them to a vega spec
- * @param gradientElement 
+ * @param gradientElement
  */
 export function extractStops(gradientElement) {
   let stops = [];
@@ -132,49 +132,48 @@ function convertCircleToPath(element) {
 }
 
 export function generateCircleSpec(svgElement) {
-    // Vega spec  doesn't support circle elements, must convert the circle to a path and render as a path
-    let circleSpec: IGeometryVegaSpec = {
-      type: "path",
-      encode: {
-        enter: {
-          path: { value: convertCircleToPath(svgElement) },
-        },
+  // Vega spec  doesn't support circle elements, must convert the circle to a path and render as a path
+  let circleSpec: IGeometryVegaSpec = {
+    type: "path",
+    encode: {
+      enter: {
+        path: { value: convertCircleToPath(svgElement) },
       },
-    };
-    // transform the property into the vega version
-    for (const [svgPropertyName, svgPropertyValue] of Object.entries(svgElement.properties)) {
-      // don't transfer circle layout properties
-      if (["r", "rx", "ry", "cx", "cy"].includes(svgPropertyName)) {
-        continue;
-      }
-      const [vegaName, vegaValue] = mapSvgToVegaProperties(svgPropertyName, svgPropertyValue);
-      circleSpec.encode.enter[vegaName] = { value: vegaValue };
+    },
+  };
+  // transform the property into the vega version
+  for (const [svgPropertyName, svgPropertyValue] of Object.entries(svgElement.properties)) {
+    // don't transfer circle layout properties
+    if (["r", "rx", "ry", "cx", "cy"].includes(svgPropertyName)) {
+      continue;
     }
-
+    const [vegaName, vegaValue] = mapSvgToVegaProperties(svgPropertyName, svgPropertyValue);
+    circleSpec.encode.enter[vegaName] = { value: vegaValue };
   }
+  return circleSpec;
+}
 
 export function offsetProperties(properties, offsets) {
-    // TODO, also update xc, yc?
-    if (properties) {
-      let xOffset = properties["x"]?.value ? properties["x"].value : 0;
-      xOffset += offsets.width;
-  
-      let yOffset = properties["y"]?.value ? properties["y"].value : 0;
-      yOffset += offsets.height;
-  
-      properties["x"] = { value: xOffset };
-      properties["y"] = { value: yOffset };
-    }
-    return properties;
-  }
+  // TODO, also update xc, yc?
+  if (properties) {
+    let xOffset = properties["x"]?.value ? properties["x"].value : 0;
+    let yOffset = properties["y"]?.value ? properties["y"].value : 0;
 
-  function convertProperties(properties){
-    let propertiesSpec = {};
+    xOffset += offsets.width;
+    yOffset += offsets.height;
+
+    properties["x"] = { value: xOffset };
+    properties["y"] = { value: yOffset };
+  }
+  return properties;
+}
+
+function convertProperties(properties) {
+  let propertiesSpec = {};
   // transform the property into the vega version
   for (const [svgPropertyName, svgPropertyValue] of Object.entries(properties)) {
     const [vegaName, vegaValue] = mapSvgToVegaProperties(svgPropertyName, svgPropertyValue);
     propertiesSpec[vegaName] = { value: vegaValue };
   }
   return propertiesSpec;
-  }
-  
+}
