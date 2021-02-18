@@ -1,4 +1,4 @@
-import {convert} from '../svgToVega';
+import convert from '../svgToVega';
 
 test('throws on invalid svg - blank', () => {
   function invalidConvert(){

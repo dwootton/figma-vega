@@ -1,4 +1,4 @@
-import { convert } from "../svgToVega";
+import convert from "../svgToVega";
 
 test("renders a rect", () => {
   const basicRectSVG = `<svg><rect x="5" y="10" width="10" height="20" fill="#00ff00"></rect></svg>`;
