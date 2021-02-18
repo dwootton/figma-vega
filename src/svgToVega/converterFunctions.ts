@@ -28,8 +28,8 @@ export function convertRecursive(root, offsets) {
 
 interface IBaseSpecification {
   encode?: {
-    enter? : Object
-  }
+    enter?: Object;
+  };
 }
 
 interface IRootNode {
@@ -38,7 +38,7 @@ interface IRootNode {
 }
 
 export function convertElement(element, offsets, root, parentRef = null) {
-  let base : IBaseSpecification = {};
+  let base: IBaseSpecification = {};
   if (element.tagName === "rect") {
     const rectangleSpec = generateRectSpec(element);
     Object.assign(base, rectangleSpec);
@@ -52,17 +52,21 @@ export function convertElement(element, offsets, root, parentRef = null) {
     const imageSpec = generateImageSpec(element);
     Object.assign(base, imageSpec);
   } else if (element.tagName === "radialGradient" || element.tagName === "linearGradient") {
-    const gradientSpec = generateGradientSpec(element,parentRef);
+    const gradientSpec = generateGradientSpec(element, parentRef);
     Object.assign(base, gradientSpec);
-  }  else if (element.tagName === "svg") {
+  } else if (element.tagName === "svg") {
     let rootSpec: IRootNode = { type: "group", marks: [] };
     Object.assign(base, rootSpec);
-  } else if (element.tagName === "pattern" || element.tagName === "use" || element.type === "root") {
+  } else if (
+    element.tagName === "pattern" ||
+    element.tagName === "use" ||
+    element.type === "root"
+  ) {
     // no vega specification for these elements, let them return an empty object
-  }  else if (element.tagName === "defs") {
+  } else if (element.tagName === "defs") {
     // early return so defs don't get processed for references
     return base;
-  }else {
+  } else {
     // element is not currently supported
     console.log("invalid element:", element);
     throw new Error(
