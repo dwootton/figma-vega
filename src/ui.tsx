@@ -18,7 +18,7 @@ import { processSvg } from "./utils";
 import Editor from "./components/Editor/Editor";
 import Overview from "./components/Overview/Overview";
 import View from "./common/models/view";
-import {convert} from './svgToVega/svgToVega';
+import convert from './svgToVega/svgToVega';
 const pluginTypes = Object.freeze({
   modifyPath: "modifyPath",
   finishedMarks: "finishedMarks",

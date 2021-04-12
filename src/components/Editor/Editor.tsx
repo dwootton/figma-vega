@@ -11,11 +11,10 @@ import embed from "vega-embed";
 //@ts-ignore
 import { ControlledEditor, DiffEditor } from "@monaco-editor/react";
 //@ts-ignore
-import {  ResizableBox } from "react-resizable";
+import { ResizableBox } from "react-resizable";
 import "react-resizable/css/styles.css";
 
 const Editor = ({ view, onBack, onEditView }) => {
-  console.log("dywootto views", view);
   const spec = view.visualizationSpec ? view.visualizationSpec : {};
   const annotationSpec = view.annotationSpec ? view.annotationSpec : { marks: [] };
 
@@ -33,7 +32,6 @@ const Editor = ({ view, onBack, onEditView }) => {
   function setViewName2(newName) {
     onEditView(view.viewId, { viewName: newName });
   }
-
 
   function onFetch() {
     //    navigator.clipboard.writeText(textToWrite);
@@ -54,7 +52,7 @@ const Editor = ({ view, onBack, onEditView }) => {
     ); //
   }
 
-  function onFetchSVG(){
+  function onFetchSVG() {
     onEditView(view.viewId, { annotationSpec: { marks: [] } });
 
     parent.postMessage(
@@ -76,8 +74,8 @@ const Editor = ({ view, onBack, onEditView }) => {
     result
       .then((embedResult) => {
         console.log("embed result", embedResult);
-        if(view.viewNodeId){
-          // update 
+        if (view.viewNodeId) {
+          // update
           parent.postMessage(
             {
               pluginMessage: {
@@ -85,7 +83,7 @@ const Editor = ({ view, onBack, onEditView }) => {
                 vegaSpec: JSON.stringify(spec),
                 svgToRender: svgString,
                 visualizationNodeId: visualizationNodeId,
-                annotationNodeId:view.annotationNodeId,
+                annotationNodeId: view.annotationNodeId,
                 viewNodeId: view.viewNodeId,
                 viewId: view.viewId,
                 viewName: viewName,
@@ -108,7 +106,6 @@ const Editor = ({ view, onBack, onEditView }) => {
             "*"
           );
         }
-        
       })
       .catch((err) => {
         console.log("invalid vega spec!", err);
@@ -202,7 +199,7 @@ const Editor = ({ view, onBack, onEditView }) => {
 
   return (
     <div>
-      <div style={{ display: "flex" }}>
+      <div style={{ display: "flex", "border-bottom": "1px solid #4F4F4F" }}>
         {" "}
         <IconButton
           onClick={onBack}
@@ -286,7 +283,7 @@ const VegaSpec = ({
   onPreview,
 }) => {
   const [editor, setEditor] = React.useState(null);
-  const[width,setWidth] = React.useState(200);
+  const [width, setWidth] = React.useState(200);
   const [formattingFunctions, setFormattingFunctions] = React.useState([]);
 
   const isSavedToDocument = !!visualizationNodeId;
@@ -300,11 +297,10 @@ const VegaSpec = ({
   function handleEditorDidMount(event, editor) {
     setEditor(editor);
   }
-  console.log('resize!',ResizableBox)
+  console.log("resize!", ResizableBox);
   return (
     <div>
-      <span>Vega Spec for Visualization:</span>
-      <ResizableBox width={300} height={600} axis={"x"} handleSize={[8,8]} resizeHandles={['e']}>
+      <ResizableBox width={300} height={550} axis={"x"} handleSize={[8, 8]} resizeHandles={["e"]}>
         <ControlledEditor
           language='json'
           editorDidMount={handleEditorDidMount}
@@ -316,7 +312,7 @@ const VegaSpec = ({
             folding: false,
             // Undocumented see https://github.com/Microsoft/vscode/issues/30795#issuecomment-410998882
           }}
-          value={JSON.stringify(currentSpec, undefined, 2)}
+          value={currentSpec ? JSON.stringify(currentSpec, undefined, 2) : "Paste Vega Spec here"}
           onChange={(ev, value) => {
             onPreview(value);
           }}
@@ -326,11 +322,8 @@ const VegaSpec = ({
       <button id='create' onClick={onCreate}>
         {isSavedToDocument ? "Update" : "Create"}
       </button>
-      <button id='fetch' disabled={!isSavedToDocument} onClick={onFetch}>
-        Fetch
-        </button>
-      <button id='fetchSVG' disabled={false} onClick={onFetchSVG}>
-        FSVG
+      <button id='fetch' disabled={!isSavedToDocument} onClick={onFetchSVG}>
+        Convert Annotations
       </button>
     </div>
   );
@@ -338,7 +331,14 @@ const VegaSpec = ({
 
 const Visualization = ({ errorMessage }) => {
   return (
-    <div style={{ width: "100%", height: "100%", overflow: "scroll" }}>
+    <div
+      style={{
+        width: "100%",
+        height: "550px",
+        "border-left": "2px solid whitesmoke",
+        overflow: "scroll",
+        backgroundColor: "whitesmoke",
+      }}>
       {errorMessage && (
         <div style={{ color: "#D8000C", backgroundColor: "#FFBABA", border: 0, padding: "10px" }}>
           {errorMessage}
@@ -346,7 +346,9 @@ const Visualization = ({ errorMessage }) => {
         </div>
       )}
 
-      <image id='vis' style={{ width: "250px", height: "400px" }}></image>
+      <div style={{ backgroundColor: "white", padding:'8px', height:'fit-content', width:'fit-content',pointerEvents:'none' }} id={'vis'}>
+        
+      </div>
     </div>
   );
 };

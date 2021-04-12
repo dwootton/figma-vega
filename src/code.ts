@@ -96,11 +96,14 @@ figma.ui.onmessage = (msg) => {
 
   if (msg.type === "create") {
     // TODO: cast as a create msg type
-    const nodes: SceneNode[] = [];
     const svgString = msg.svgToRender;
-    const id = msg.viewId;
     const viewName = msg.name;
-    console.log(msg);
+
+    // get current page, determine the constraints for 
+    const visualizationArtBoard = figma.createFrame();
+
+    visualizationArtBoard.resize(1920,1080);
+    visualizationArtBoard.layoutAlign = "INHERIT";
 
     const visualization = figma.createNodeFromSvg(svgString);
     visualization.name = `Visualization Layer - ${viewName}`;
@@ -140,7 +143,8 @@ figma.ui.onmessage = (msg) => {
     }
 
     //
-    const group = figma.group([newAnnotationsLayer, visualization], figma.currentPage);
+    const group = figma.group([newAnnotationsLayer, visualization], visualizationArtBoard);
+    
     group.name = viewName;
     group.setPluginData("viewName", viewName);
     group.setPluginData("viewId", msg.viewId);
@@ -264,13 +268,50 @@ figma.ui.onmessage = (msg) => {
     const annotationsLayer : SceneNode = figma.getNodeById(annotationsId);
 
     function ab2str(buf) {
-      return String.fromCharCode.apply(null, new Uint16Array(buf));
+      return Utf8ArrayToStr(buf)
+      //return String.fromCharCode.apply(null, new Uint8Array(buf));
     }
-    
+    function Utf8ArrayToStr(array) {
+      var out, i, len, c;
+      var char2, char3;
+  
+      out = "";
+      len = array.length;
+      i = 0;
+      while(i < len) {
+      c = array[i++];
+      switch(c >> 4)
+      { 
+        case 0: case 1: case 2: case 3: case 4: case 5: case 6: case 7:
+          // 0xxxxxxx
+          out += String.fromCharCode(c);
+          break;
+        case 12: case 13:
+          // 110x xxxx   10xx xxxx
+          char2 = array[i++];
+          out += String.fromCharCode(((c & 0x1F) << 6) | (char2 & 0x3F));
+          break;
+        case 14:
+          // 1110 xxxx  10xx xxxx  10xx xxxx
+          char2 = array[i++];
+          char3 = array[i++];
+          out += String.fromCharCode(((c & 0x0F) << 12) |
+                         ((char2 & 0x3F) << 6) |
+                         ((char3 & 0x3F) << 0));
+          break;
+      }
+      }
+  
+      return out;
+  }
+  
     // BUG: combine all texts into one path object
     // go through for each export get promises
     // for each value, export it as async
+    console.log('about to fetch svg')
     const svgString = annotationsLayer.exportAsync({ format: "SVG" }).then((svgCode)=>{
+      console.log('about to convert',svgCode)
+
       const svg = ab2str(svgCode);
       console.log('dywootto svg',svg,svgCode);
       figma.ui.postMessage({
