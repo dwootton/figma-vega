@@ -4,7 +4,8 @@ import * as ReactDOM from "react-dom";
 import { store } from "react-notifications-component";
 
 //@ts-ignore
-import { IconButton, Input, Switch } from "react-figma-ui";
+import { Button, Title, Icon } from "react-figma-plugin-ds";
+
 //@ts-ignore
 import embed from "vega-embed";
 
@@ -23,6 +24,7 @@ const Editor = ({ view, onBack, onEditView }) => {
 
   const [svgString, setSvgString] = React.useState("");
   const [message, setMessage] = React.useState("");
+  const [unsavedSpec, setUnsavedSet] = React.useState(spec);
 
   function updateVisualizationSpec(newSpec) {
     console.log("setting viewSpec", view.viewId, viewName, newSpec);
@@ -34,8 +36,6 @@ const Editor = ({ view, onBack, onEditView }) => {
   }
 
   function onFetch() {
-    //    navigator.clipboard.writeText(textToWrite);
-
     // clear current marks
     onEditView(view.viewId, { annotationSpec: { marks: [] } });
     console.log("sending for fetch", view.viewNodeId);
@@ -113,11 +113,9 @@ const Editor = ({ view, onBack, onEditView }) => {
       });
   }
 
-  function onPreview(value) {
-    console.log("preview value", value);
-
+  function onPreview() {
     //@ts-ignore
-    let specString = value; //.target.value;//document.getElementById("vegaSpec").value;
+    let specString = unsavedSpec; //.target.value;//document.getElementById("vegaSpec").value;
     try {
       const tempSpec = JSON.parse(specString);
       setMessage("");
@@ -170,20 +168,6 @@ const Editor = ({ view, onBack, onEditView }) => {
             }}
           />
         ),
-
-        /*() => {
-          return ""
-          (
-            <p>
-              .{" "}
-              {/*<span
-                
-                onClick={}>
-                Add it to the editor?
-              </span>}
-            </p>
-          );
-        },*/
         type: "success",
         insert: "top",
         container: "top-full",
@@ -197,36 +181,46 @@ const Editor = ({ view, onBack, onEditView }) => {
     }
   }, [view.annotationSpec]);
 
+  const isSavedToDocument = !!visualizationNodeId;
+
   return (
     <div>
-      <div style={{ display: "flex", "border-bottom": "1px solid #4F4F4F" }}>
+      <div style={{ display: "flex", "width":"100%","border-bottom": "1px solid #4F4F4F" }}>
         {" "}
-        <IconButton
-          onClick={onBack}
-          style={{ cursor: "pointer" }}
-          iconProps={{ iconName: "back" }}></IconButton>{" "}
+        <div style={{ cursor: "pointer" }}>
+        <Icon onClick={onBack}  name={"back"}></Icon>{" "}
+
+        </div>
         <div>
           {" "}
-          <Input
-            value={viewName}
-            style={{ width: "250px", marginLeft: "24px" }}
-            placeholder='Enter Visualization Name'
-            onChange={(event) => {
-              setViewName2(event.target.value);
-            }}></Input>
+          <Title
+            size="xlarge"
+            className={'viewTitle'}
+            styles={{ width: "350px", margin:'0px 0px 0px 24px' }}
+            
+            >{viewName}</Title>
         </div>
       </div>
 
       <div style={{ display: "flex" }}>
         <VegaSpec
           currentSpec={spec}
-          onCreate={() => onCreate(view.viewId)}
           visualizationNodeId={visualizationNodeId}
           annotationSpec={annotationSpec}
-          onFetch={onFetch}
-          onFetchSVG={onFetchSVG}
-          onPreview={onPreview}></VegaSpec>
+          onChange={setUnsavedSet}></VegaSpec>
         <Visualization errorMessage={message}></Visualization>
+      </div>
+      <div style={{ display: "flex", margin: "8px" }}>
+        <Button className={'actionButton left'} id='preview' onClick={onPreview} isSecondary>
+          Preview Visualization
+        </Button>
+     
+        <Button className={'actionButton right'} id='fetch' disabled={!isSavedToDocument} onClick={onFetchSVG} isSecondary>
+          Get Annotations
+        </Button>
+        <Button className={'actionButton'} id='create' onClick={() => onCreate(view.viewId)}>
+          {isSavedToDocument ? "Update Document" : "Save to Document"}
+        </Button>
       </div>
     </div>
   );
@@ -273,20 +267,10 @@ function mergeVisualizationAndAnnotationSpec(visualizationSpec, annotationSpec) 
   return specCopy;
 }
 
-const VegaSpec = ({
-  currentSpec,
-  annotationSpec,
-  visualizationNodeId,
-  onCreate,
-  onFetch,
-  onFetchSVG,
-  onPreview,
-}) => {
+const VegaSpec = ({ currentSpec, annotationSpec, visualizationNodeId, onChange }) => {
   const [editor, setEditor] = React.useState(null);
   const [width, setWidth] = React.useState(200);
   const [formattingFunctions, setFormattingFunctions] = React.useState([]);
-
-  const isSavedToDocument = !!visualizationNodeId;
 
   React.useEffect(() => {
     if (editor) {
@@ -308,23 +292,18 @@ const VegaSpec = ({
             formatOnPaste: true,
             minimap: { enabled: false },
             lineNumbers: "off",
+            smoothScrolling: true,
+            selectionHighlight: false,
             glyphMargin: false,
             folding: false,
             // Undocumented see https://github.com/Microsoft/vscode/issues/30795#issuecomment-410998882
           }}
           value={currentSpec ? JSON.stringify(currentSpec, undefined, 2) : "Paste Vega Spec here"}
           onChange={(ev, value) => {
-            onPreview(value);
+            onChange(value);
           }}
         />
       </ResizableBox>
-
-      <button id='create' onClick={onCreate}>
-        {isSavedToDocument ? "Update" : "Create"}
-      </button>
-      <button id='fetch' disabled={!isSavedToDocument} onClick={onFetchSVG}>
-        Convert Annotations
-      </button>
     </div>
   );
 };
@@ -346,9 +325,15 @@ const Visualization = ({ errorMessage }) => {
         </div>
       )}
 
-      <div style={{ backgroundColor: "white", padding:'8px', height:'fit-content', width:'fit-content',pointerEvents:'none' }} id={'vis'}>
-        
-      </div>
+      <div
+        style={{
+          backgroundColor: "white",
+          padding: "8px",
+          height: "fit-content",
+          width: "fit-content",
+          pointerEvents: "none",
+        }}
+        id={"vis"}></div>
     </div>
   );
 };

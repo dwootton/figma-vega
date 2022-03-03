@@ -1,0 +1,115 @@
+Arguments: 
+  /Users/dylanwootton/.nvm/versions/node/v17.0.1/bin/node /usr/local/bin/yarn add @types
+
+PATH: 
+  /Library/Frameworks/Python.framework/Versions/3.10/bin:/Users/dylanwootton/.nvm/versions/node/v17.0.1/bin:/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin:/Library/TeX/texbin:/Library/Frameworks/Python.framework/Versions/3.10/bin:/Users/dylanwootton/.nvm/versions/node/v17.0.1/bin:/Users/dylanwootton/anaconda3/bin:/Users/dylanwootton/anaconda3/condabin
+
+Yarn version: 
+  1.22.11
+
+Node version: 
+  17.0.1
+
+Platform: 
+  darwin x64
+
+Trace: 
+  Error: https://registry.yarnpkg.com/@types: Request "https://registry.yarnpkg.com/@types" returned a 405
+      at Request.params.callback [as _callback] (/usr/local/lib/node_modules/yarn/lib/cli.js:67001:18)
+      at Request.self.callback (/usr/local/lib/node_modules/yarn/lib/cli.js:140763:22)
+      at Request.emit (node:events:390:28)
+      at Request.<anonymous> (/usr/local/lib/node_modules/yarn/lib/cli.js:141735:10)
+      at Request.emit (node:events:390:28)
+      at IncomingMessage.<anonymous> (/usr/local/lib/node_modules/yarn/lib/cli.js:141657:12)
+      at Object.onceWrapper (node:events:509:28)
+      at IncomingMessage.emit (node:events:402:35)
+      at endReadableNT (node:internal/streams/readable:1340:12)
+      at processTicksAndRejections (node:internal/process/task_queues:83:21)
+
+npm manifest: 
+  {
+    "name": "vega-fi",
+    "version": "1.0.0",
+    "description": "Your Figma plugin",
+    "main": "code.js",
+    "scripts": {
+      "build": "tsc -p tsconfig.json",
+      "test": "jest --no-cache --config ./jest.config.json",
+      "test:nocover": "jest --config ./jest.config.json",
+      "test:watch": "jest --watch --config ./jest.config.json",
+      "build:debug": "tsc -p ./tsconfig.debug.json --pretty"
+    },
+    "author": "Dylan Wootton",
+    "license": "MIT",
+    "devDependencies": {
+      "@figma/plugin-typings": "^1.19.0",
+      "@types/jest": "^26.0.20",
+      "@types/react": "^17.0.0",
+      "@types/react-dom": "^17.0.0",
+      "css-loader": "^5.0.1",
+      "html-webpack-inline-source-plugin": "^1.0.0-beta.2",
+      "html-webpack-plugin": "^4.5.0",
+      "jest": "^26.6.3",
+      "style-loader": "^2.0.0",
+      "ts-jest": "^26.4.4",
+      "ts-loader": "^8.0.12",
+      "typescript": "^4.1.3",
+      "url-loader": "^4.1.1",
+      "webpack": "^5.11.0",
+      "webpack-cli": "^4.2.0"
+    },
+    "dependencies": {
+      "@babel/plugin-transform-modules-commonjs": "^7.12.1",
+      "@babel/preset-typescript": "^7.12.7",
+      "@monaco-editor/react": "^3.7.4",
+      "@types/react-redux": "^7.1.14",
+      "@types/redux": "^3.6.0",
+      "@types/svg-parser": "^2.0.1",
+      "color-string": "^1.5.4",
+      "lodash": "^4.17.20",
+      "monaco-editor-webpack-plugin": "^2.1.0",
+      "paper": "^0.12.11",
+      "paper-jsdom": "^0.12.11",
+      "parse-color": "^1.0.0",
+      "react": "^17.0.1",
+      "react-dom": "^17.0.1",
+      "react-figma-plugin-ds": "^2.0.5",
+      "react-figma-ui": "github:dwootton/react-figma-ui#fixselectMenu",
+      "react-monaco-editor": "^0.41.2",
+      "react-notifications-component": "^3.0.3",
+      "react-redux": "^7.2.2",
+      "react-resizable": "^1.11.0",
+      "react-vega": "^7.4.2",
+      "react-vega-lite": "^6.1.0",
+      "redux": "^4.0.5",
+      "simplify-js": "^1.2.4",
+      "svg-parser": "^2.0.4",
+      "svg-path-bounds": "^1.0.1",
+      "svg-path-utils": "0.0.3",
+      "svgpath": "github:kpym/SVGPathy",
+      "vega": "^5.17.0",
+      "vega-embed": "^6.14.2",
+      "vega-lite": "^4.17.0"
+    },
+    "repository": {
+      "type": "git",
+      "url": "git+https://github.com/dwootton/figma-vega.git"
+    },
+    "keywords": [
+      "Vega",
+      "Figma",
+      "SVG",
+      "Visualization",
+      "Plugin"
+    ],
+    "bugs": {
+      "url": "https://github.com/dwootton/figma-vega/issues"
+    },
+    "homepage": "https://github.com/dwootton/figma-vega#readme"
+  }
+
+yarn manifest: 
+  No manifest
+
+Lockfile: 
+  No lockfile

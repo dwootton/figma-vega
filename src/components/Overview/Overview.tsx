@@ -1,6 +1,6 @@
 import * as React from "react";
 //@ts-ignore
-import { IconButton, Button } from "react-figma-ui";
+import { Button, Select } from "react-figma-plugin-ds";
 import View from "../../common/models/view";
 interface IView {
   viewId: string; // internal property for identifying ui
@@ -13,6 +13,7 @@ interface IView {
   annotationNodeId: string; // property for identifying annotations on figma scenegraph
   visualizationNodeId: string; // property for identifying annotations on figma scenegraph
 }
+
 const createSVG = `
 <svg width="146" height="163" viewBox="0 0 146 163" fill="none" xmlns="http://www.w3.org/2000/svg">
 <rect width="146" height="163" fill="white" fill-opacity="0.01"/>
@@ -20,11 +21,56 @@ const createSVG = `
 <rect x="123.5" y="73.5" width="17" height="102" transform="rotate(90 123.5 73.5)" fill="#C4C4C4"/>
 </svg>
 `;
+const Overview = ({ onCreateView, onViewSelect, views }) => {
+  // Example options
 
+  const options = views.map((view) => {
+    return { value: view.viewId, label: view.viewName };
+  });
+  console.log(options, views);
+  function onChanged(viewId) {
+    console.log("in change", viewId);
+    onViewSelect(viewId);
+  }
 
-const Overview = ({ onViewSelect, views, onCreateView }) => {
   return (
-    <ul style={{ "list-style": "none" , margin:'auto', width:300}}>
+    <div
+      style={{ width: "225px", height: "100%", margin: "auto", marginTop: "200px" }}
+      className={"overviewBody"}>
+      <Button
+        className={'createView'}
+        tint='primary'
+        onClick={() => {
+          const newView = new View({ viewName: `Visualization ${views.length}` });
+          // create view in redux store
+          onCreateView(newView);
+          // select view
+          onViewSelect(newView.viewId);
+        }}>
+        Create Visualization
+      </Button>
+      <div style={{ margin: "24px auto" }}>
+        or
+        <div style={{ margin: "24px auto" }}>
+          <Select
+            className={"dropDownButton"}
+            disabled={views?.length === 0}
+            placeholder='Select Vega View'
+            options={options}
+            onChange={(selected) => {
+              console.log("dwootton in select", selected);
+              onViewSelect(selected.value);
+            }}
+          />
+        </div>
+      </div>
+    </div>
+  );
+};
+
+const OldOverview = ({ onViewSelect, views, onCreateView }) => {
+  return (
+    <ul style={{ "list-style": "none", margin: "auto", width: 300 }}>
       <HorizontalCard
         onClick={() => {
           const newView = new View({ viewName: `Visualization ${views.length}` });

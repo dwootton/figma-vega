@@ -1,71 +1,180 @@
 import * as React from "react";
 import * as ReactDOM from "react-dom";
-import "./ui.css";
-import { processSvg } from "./utils";
+import store from "./redux/store";
+import { addView, editView } from "./redux/actions";
+import { Provider, connect } from "react-redux";
 //@ts-ignore
-import embed from "vega-embed";
-const App = () => {
-    const [svgString, setSvgString] = React.useState("");
-    const [spec, setSpec] = React.useState({});
-    const [message, setMessage] = React.useState("");
-    console.log(svgString);
-    function onFetch() {
-        parent.postMessage({
-            pluginMessage: {
-                type: "fetch",
-                object: svgString
-            },
-        }, "*"); //
-    }
-    function onCreate() {
-        parent.postMessage({
-            pluginMessage: {
-                type: "create",
-                object: svgString,
-            },
-        }, "*"); //
-        console.log(processSvg(`<svg width=100 height=100><rect width=10 height=15 x=20 y=50></rect></svg>`));
-    }
-    function onGenerate() {
-        //@ts-ignore
-        let specString = document.getElementById("vegaSpec").value; // = "Fifth Avenue, New York City";
-        try {
-            const tempSpec = JSON.parse(specString);
-            setMessage("");
-            setSpec(tempSpec);
-        }
-        catch (e) {
-            setMessage("Not a valid spec");
-        }
-    }
-    function onCancel() {
-        parent.postMessage({ pluginMessage: { type: "cancel" } }, "*");
-    }
-    React.useEffect(() => {
-        const result = embed("#vis", spec);
-        result.then((embedResult) => {
-            console.log(embedResult.view);
-            embedResult.view
-                .toSVG()
-                .then(function (svg) {
-                // process svg string
-                console.log("YOUR SVG STRING", svg);
-                setSvgString(svg);
-            })
-                .catch(function (err) {
-                console.error(err);
+import ReactNotification from "react-notifications-component";
+import "react-notifications-component/dist/theme.css";
+import "react-figma-plugin-ds/figma-plugin-ds.css";
+//@ts-ignore
+import * as svgpath from "svgpath";
+//@ts-ignore
+import * as pathUtils from "svg-path-utils";
+import "./ui.css";
+import Editor from "./components/Editor/Editor";
+import Overview from "./components/Overview/Overview";
+import View from "./common/models/view";
+import convert from "./svgToVega/svgToVega";
+const pluginTypes = Object.freeze({
+    modifyPath: "modifyPath",
+    finishedMarks: "finishedMarks",
+    startUpViews: "startUpViews",
+    finishedCreate: "finishedCreate",
+    tester: "tester",
+});
+onmessage = (event) => {
+    if (event.data.pluginMessage.type === pluginTypes.modifyPath) {
+        const { nodeCollection, viewId, viewNodeId } = event.data.pluginMessage;
+        const svgNodeCollection = [];
+        for (const node of nodeCollection) {
+            const { vectorizedNodes, shouldFillBeInverted } = node;
+            console.log("should fill be invert", vectorizedNodes, shouldFillBeInverted);
+            const svgNodes = vectorizedNodes.map((vectorNode) => {
+                const vectorPaths = vectorNode.vectorPaths;
+                const nodeId = vectorNode.nodeId;
+                console.log("vector paths", vectorPaths);
+                let pathString = vectorPaths.map((path) => path.data).join(" ");
+                // if a object must have been outlined, invert its path for appropriate styling despite "even-odd " fill rule
+                if (shouldFillBeInverted) {
+                    let utils = new pathUtils.SVGPathUtils();
+                    const paths = pathString.split(/[zZ]/).filter((path) => path !== "");
+                    // for every other path, inverse it
+                    for (let i = 0; i < paths.length; i = i + 2) {
+                        paths[i] = utils.inversePath(paths[i]);
+                    }
+                    pathString = paths.join("Z ");
+                }
+                console.log(pathString);
+                let parsedPath = svgpath(pathString);
+                console.log("untouched path data", parsedPath);
+                const bounds = parsedPath.toBox();
+                const width = bounds.maxX - bounds.minX;
+                const height = bounds.maxY - bounds.minY;
+                const maxDimension = Math.max(width, height);
+                parsedPath = parsedPath.translate(-width / 2, -height / 2).scale(2 / maxDimension);
+                return { nodeId: nodeId, svgString: parsedPath.toString() };
             });
-        });
-    });
-    return (React.createElement("div", { style: { width: 500, height: 750 } },
-        React.createElement("img", { src: require("./logo.svg") }),
-        message,
-        React.createElement("button", { id: 'create', onClick: onGenerate }, "Generate Viz"),
-        React.createElement("button", { id: 'create', onClick: onCreate }, "Create"),
-        React.createElement("button", { id: 'create', onClick: onFetch }, "Fetch"),
-        React.createElement("button", { onClick: onCancel }, "Cancel"),
-        React.createElement("h2", null, "Rectangle Creator in dev"),
-        React.createElement("textarea", { id: 'vegaSpec' }),
-        React.createElement("div", { id: 'vis' })));
+            svgNodeCollection.push(svgNodes);
+        }
+        parent.postMessage({
+                pluginMessage: {
+                    type: "sendScaled",
+                    viewId: viewId,
+                    viewNodeId: viewNodeId,
+                    svgNodeCollection: svgNodeCollection,
+                },
+            },
+            "*"
+        );
+    } else if (event.data.pluginMessage.type === pluginTypes.finishedMarks) {
+        const { viewId, annotationSpec } = event.data.pluginMessage;
+        // add the figma node id for the vega view
+        console.log("changed spec", annotationSpec);
+        const addAnnotation = {
+            type: "ALTER_VEGA_VIEW",
+            payload: {
+                viewId: viewId,
+                view: {
+                    annotationSpec: annotationSpec,
+                },
+            },
+        };
+        console.log("OLD SPEC", addAnnotation);
+        store.dispatch(addAnnotation);
+        // I can add this to update redux state
+    } else if (event.data.pluginMessage.type === pluginTypes.tester) {
+        const viewId = event.data.pluginMessage.viewId;
+        const annotationSpec = convert(event.data.pluginMessage.svgString, { width: -event.data.pluginMessage.vegaPaddingWidth, height: -event.data.pluginMessage.vegaPaddingHeight });
+        const addAnnotation = {
+            type: "ALTER_VEGA_VIEW",
+            payload: {
+                viewId: viewId,
+                view: {
+                    annotationSpec: annotationSpec,
+                },
+            },
+        };
+        console.log("NEW SPEC", addAnnotation);
+        store.dispatch(addAnnotation);
+    } else if (event.data.pluginMessage.type === pluginTypes.startUpViews) {
+        const viewsData = event.data.pluginMessage.viewsData;
+        console.log("views data", viewsData);
+        for (const view of viewsData) {
+            const parsedView = new View(view);
+            const addAction = { type: "ADD_VEGA_VIEW", payload: { viewData: parsedView } };
+            store.dispatch(addAction);
+        }
+        // add views data to redux store.
+    } else if (event.data.pluginMessage.type === pluginTypes.finishedCreate) {
+        // add the figma node id for the vega view
+        const { viewNodeId, annotationNodeId, visualizationNodeId, viewId } = event.data.pluginMessage;
+        const alterActions = {
+            type: "ALTER_VEGA_VIEW",
+            payload: {
+                viewId: viewId,
+                view: {
+                    viewNodeId: viewNodeId,
+                    annotationNodeId: annotationNodeId,
+                    visualizationNodeId: visualizationNodeId,
+                },
+            },
+        };
+        store.dispatch(alterActions);
+    }
+    // read the svg string
+    // simplify it
+    // translate it to the middle
+    //
 };
-ReactDOM.render(React.createElement(App, null), document.getElementById("react-page"));
+const channel = new MessageChannel();
+const VIEW_ENUM = Object.freeze({ OVERVIEW: "OVERVIEW", VIEW: "VIEW" });
+const AppWithRedux = ({ views, dispatch }) => {
+    // on load, send message to document to find all vega nodes
+    const [selectedViewId, setSelectedViewId] = React.useState();
+
+    function onBack() {
+        setSelectedViewId(null);
+    }
+
+    function onViewSelect(viewId) {
+        console.log("moving to selected view!", viewId);
+        setSelectedViewId(viewId);
+    }
+    console.log("views", JSON.parse(JSON.stringify(views)));
+
+    function onCreateView(viewData) {
+        console.log("creating view", JSON.parse(JSON.stringify(viewData)));
+        dispatch(addView(viewData));
+    }
+
+    function onEditView(id, alteredView) {
+        console.log("editing view", id, JSON.stringify(alteredView));
+        dispatch(editView(id, alteredView));
+    }
+    // fetch vega views from the scenegraph and populate redux store.
+    React.useEffect(() => {
+        parent.postMessage({
+                pluginMessage: {
+                    type: "startUp",
+                },
+            },
+            "*"
+        );
+    }, []);
+
+    return React.createElement(
+        "div",
+        React.createElement(ReactNotification, null), !selectedViewId && React.createElement(Overview, { onViewSelect: onViewSelect, onCreateView: onCreateView, views: views }),
+        selectedViewId && React.createElement(Editor, { onBack: onBack, onEditView: onEditView, view: views.find((view) => view.viewId === selectedViewId) })
+    );
+};
+// export default Todo;
+// return all nodes + annotation layers
+const mapStateToProps = (state) => {
+    console.log("mapping state to props", state);
+    const views = state.vegaViews;
+    return { views };
+};
+const App = connect(mapStateToProps)(AppWithRedux);
+ReactDOM.render(React.createElement(Provider, { store: store }, " ", React.createElement(App, null), " "), document.getElementById("react-page"));

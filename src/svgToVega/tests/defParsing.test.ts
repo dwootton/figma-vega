@@ -63,8 +63,6 @@ test.only('tests linear gradients',()=>{
     </defs>
     </svg>`
 
-    //
-
     const returnVal = {"marks":[
         {"type":"group",
         "marks":[{"type":"rect",

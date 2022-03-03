@@ -1,95 +1,385 @@
- //@ts-ignore
-import SVGPath from "./SVGPaths.js";
+//import {createNormalizedPath} from "./helperFunctions";
 //import {SVGpath, SVGsegs} from './SVGPaths.js';
 // This plugin will open a window to prompt the user to enter a number, and
 // it will then create that many rectangles on the screen.
 // This file holds the main code for the plugins. It has access to the *document*.
 // You can access browser APIs in the <script> tag inside "ui.html" which has a
 // full browser environment (see documentation).
-// This shows the HTML page in "ui.html".
+// This shows the HTML page in "ui.htmlviewsData".
 figma.showUI(__html__);
+const PADDING_WIDTH_REGEX = /(?<=translate\()\d+/;
+const PADDING_HEIGHT_REGEX = /(?<=translate\(\d+,)\d+/;
+const SVG_WIDTH_REGEX = /(?<=width=")\d+/;
+const SVG_HEIGHT_REGEX = /(?<=height=")\d+/;
+/**
+ * Utility function to search through all top level nodes of each page in a figma document
+ * returns a list of matching figma nodes
+ * @param currentPage
+ * @param searchFunction predicate run on each child node of the page
+ */
+function searchTopLevel(root, searchPredicate) {
+    const searchResults = [];
+    const nodeIterator = walkTreeToDepth(root, 0, 3);
+    let nodeStep = nodeIterator.next();
+    while (!nodeStep.done) {
+        const node = nodeStep.value;
+        if (searchPredicate(node)) {
+            searchResults.push(node);
+        }
+        nodeStep = nodeIterator.next();
+    }
+    // iterate through all child nodes of current page
+    return searchResults;
+}
+function* walkTreeToDepth(node, currentDepth = 1, maxDepth = 2) {
+    yield node;
+    const { children } = node;
+    if (children && currentDepth <= maxDepth) {
+        for (const child of children) {
+            yield* walkTreeToDepth(child, currentDepth + 1, maxDepth);
+        }
+    }
+}
+function clone(val) {
+    const type = typeof val;
+    if (val === null) {
+        return null;
+    }
+    else if (type === "undefined" || type === "number" || type === "string" || type === "boolean") {
+        return val;
+    }
+    else if (type === "object") {
+        if (val instanceof Array) {
+            return val.map((x) => clone(x));
+        }
+        else if (val instanceof Uint8Array) {
+            return new Uint8Array(val);
+        }
+        else {
+            let o = {};
+            for (const key in val) {
+                o[key] = clone(val[key]);
+            }
+            return o;
+        }
+    }
+    throw "unknown";
+}
+function* walkTree(node) {
+    yield node;
+    const { children } = node;
+    if (children) {
+        for (const child of children) {
+            yield* walkTree(child);
+        }
+    }
+}
 // Calls to "parent.postMessage" from within the HTML page will trigger this
 // callback. The callback will be passed the "pluginMessage" property of the
 // posted message.
 figma.ui.onmessage = (msg) => {
     // One way of distinguishing between different types of messages sent from
     // your HTML page is to use an object with a "type" property like this.
-    //console.log(SVGpath, SVGsegs,new SVGsegs("M 0.5 -0.5 l 0 1 -1 0 0 -1 z"));
-    console.log(SVGPath);
     if (msg.type === "create") {
-        const nodes = [];
-        console.log(msg);
-        const rect = figma.createNodeFromSvg(msg.object);
-        figma.createComponent();
-        figma.currentPage.appendChild(rect);
-        nodes.push(rect);
-        figma.currentPage.selection = nodes;
-        figma.viewport.scrollAndZoomIntoView(nodes);
+        // TODO: cast as a create msg type
+        const svgString = msg.svgToRender;
+        const viewName = msg.name;
+        // get current page, determine the constraints for
+        const visualizationArtBoard = figma.createFrame();
+        visualizationArtBoard.resize(1920, 1080);
+        visualizationArtBoard.layoutAlign = "INHERIT";
+        const visualization = figma.createNodeFromSvg(svgString);
+        visualization.name = `Visualization Layer - ${viewName}`;
+        visualization.locked = true;
+        // place annotations layer on top and make transparent
+        const newAnnotationsLayer = figma.createFrame();
+        const paddingWidthMatches = svgString.match(PADDING_WIDTH_REGEX);
+        const paddingHeightMatches = svgString.match(PADDING_HEIGHT_REGEX);
+        if (paddingWidthMatches) {
+            const widthString = paddingWidthMatches[0];
+            newAnnotationsLayer.setPluginData("vegaPaddingWidth", widthString);
+        }
+        if (paddingHeightMatches) {
+            const heightString = paddingHeightMatches[0];
+            newAnnotationsLayer.setPluginData("vegaPaddingHeight", heightString);
+        }
+        const fills = clone(newAnnotationsLayer.fills);
+        fills[0].opacity = 0;
+        newAnnotationsLayer.fills = fills;
+        newAnnotationsLayer.clipsContent = false;
+        newAnnotationsLayer.name = `Annotations Layer - ${viewName}`;
+        // grab width and height
+        // set annotations width and height
+        const widthMatches = svgString.match(SVG_WIDTH_REGEX);
+        const heightMatches = svgString.match(SVG_HEIGHT_REGEX);
+        if (widthMatches && heightMatches) {
+            const width = Number(widthMatches[0]);
+            const height = Number(heightMatches[0]);
+            newAnnotationsLayer.resize(width > 0 ? width : 100, height > 0 ? height : 100);
+        }
+        //
+        const group = figma.group([newAnnotationsLayer, visualization], visualizationArtBoard);
+        group.name = viewName;
+        group.setPluginData("viewName", viewName);
+        group.setPluginData("viewId", msg.viewId);
+        group.setPluginData("type", "vegaView");
+        group.setPluginData("annotationSpec", `{"marks":[]}`);
+        group.setPluginData("annotationNodeId", newAnnotationsLayer.id);
+        group.setPluginData("visualizationSpec", msg.vegaSpec);
+        group.setPluginData("visualizationNodeId", visualization.id);
+        if (paddingWidthMatches) {
+            const widthString = paddingWidthMatches[0];
+            group.setPluginData("vegaPaddingWidth", widthString);
+        }
+        if (paddingHeightMatches) {
+            const heightString = paddingHeightMatches[0];
+            group.setPluginData("vegaPaddingHeight", heightString);
+        }
+        figma.ui.postMessage({
+            viewId: msg.viewId,
+            viewNodeId: group.id,
+            visualizationNodeId: visualization.id,
+            annotationNodeId: newAnnotationsLayer.id,
+            type: "finishedCreate",
+        });
     }
-    if (msg.type === "fetch") {
-        // grab annnotations layer, 
-        // grab plugin data for the width/height padding 
-        const newSelection = [figma.flatten(figma.currentPage.selection)];
-        console.log(newSelection);
-        for (const sceneNode of newSelection) {
-            if (sceneNode.type !== "VECTOR") {
+    else if (msg.type === "update") {
+        const { visualizationNodeId, annotationNodeId, viewNodeId, viewId, viewName, vegaSpec, svgToRender, } = msg;
+        console.log();
+        // delete old vis
+        figma.getNodeById(visualizationNodeId).remove();
+        const visualization = figma.createNodeFromSvg(svgToRender);
+        visualization.name = `Visualization Layer - ${viewName}`;
+        visualization.locked = true;
+        // place annotations layer on top and make transparent
+        let annotationLayer = figma.getNodeById(annotationNodeId);
+        if (!annotationLayer) {
+            annotationLayer = figma.createFrame();
+        }
+        const paddingWidthMatches = svgToRender.match(PADDING_WIDTH_REGEX);
+        const paddingHeightMatches = svgToRender.match(PADDING_HEIGHT_REGEX);
+        if (paddingWidthMatches) {
+            const widthString = paddingWidthMatches[0];
+            annotationLayer.setPluginData("vegaPaddingWidth", widthString);
+        }
+        if (paddingHeightMatches) {
+            const heightString = paddingHeightMatches[0];
+            annotationLayer.setPluginData("vegaPaddingHeight", heightString);
+        }
+        annotationLayer.name = `Annotations Layer - ${viewName}`;
+        // grab width and height
+        // set annotations width and height
+        const widthMatches = svgToRender.match(SVG_WIDTH_REGEX);
+        const heightMatches = svgToRender.match(SVG_HEIGHT_REGEX);
+        if (widthMatches && heightMatches) {
+            const width = Number(widthMatches[0]);
+            const height = Number(heightMatches[0]);
+            //@ts-ignore
+            annotationLayer.resize(width > 0 ? width : 100, height > 0 ? height : 100);
+        }
+        let group = figma.getNodeById(viewNodeId);
+        if (!group) {
+            group = figma.group([annotationLayer, visualization], figma.currentPage);
+        }
+        //@ts-ignore
+        group.appendChild(visualization);
+        group.name = viewName;
+        group.setPluginData("viewName", viewName);
+        group.setPluginData("viewId", viewId);
+        group.setPluginData("type", "vegaView");
+        group.setPluginData("annotationSpec", `{"marks":[]}`);
+        group.setPluginData("visualizationSpec", vegaSpec);
+        group.setPluginData("visualizationNodeId", visualization.id);
+        if (paddingWidthMatches) {
+            const widthString = paddingWidthMatches[0];
+            group.setPluginData("vegaPaddingWidth", widthString);
+        }
+        if (paddingHeightMatches) {
+            const heightString = paddingHeightMatches[0];
+            group.setPluginData("vegaPaddingHeight", heightString);
+        }
+        figma.ui.postMessage({
+            viewId: viewId,
+            viewNodeId: group.id,
+            visualizationNodeId: visualization.id,
+            annotationNodeId: annotationLayer.id,
+            type: "finishedCreate",
+        });
+    }
+    else if (msg.type === "fetchSVG") {
+        // Current level: Get all svg export and then convert
+        //const selectedNodeId = msg.viewNodeId;
+        console.log("fetching node id", msg.viewNodeId);
+        const annotationsId = msg.annotationNodeId;
+        const viewNodeId = msg.viewNodeId;
+        const viewId = msg.viewId;
+        //@ts-ignore
+        const viewNode = figma.getNodeById(viewNodeId);
+        const vegaPaddingWidth = viewNode.getPluginData("vegaPaddingWidth");
+        const vegaPaddingHeight = viewNode.getPluginData("vegaPaddingHeight");
+        // uses a fetch by id
+        //@ts-ignore
+        const annotationsLayer = figma.getNodeById(annotationsId);
+        function ab2str(buf) {
+            return Utf8ArrayToStr(buf);
+            //return String.fromCharCode.apply(null, new Uint8Array(buf));
+        }
+        function Utf8ArrayToStr(array) {
+            var out, i, len, c;
+            var char2, char3;
+            out = "";
+            len = array.length;
+            i = 0;
+            while (i < len) {
+                c = array[i++];
+                switch (c >> 4) {
+                    case 0:
+                    case 1:
+                    case 2:
+                    case 3:
+                    case 4:
+                    case 5:
+                    case 6:
+                    case 7:
+                        // 0xxxxxxx
+                        out += String.fromCharCode(c);
+                        break;
+                    case 12:
+                    case 13:
+                        // 110x xxxx   10xx xxxx
+                        char2 = array[i++];
+                        out += String.fromCharCode(((c & 0x1f) << 6) | (char2 & 0x3f));
+                        break;
+                    case 14:
+                        // 1110 xxxx  10xx xxxx  10xx xxxx
+                        char2 = array[i++];
+                        char3 = array[i++];
+                        out += String.fromCharCode(((c & 0x0f) << 12) | ((char2 & 0x3f) << 6) | ((char3 & 0x3f) << 0));
+                        break;
+                }
+            }
+            return out;
+        }
+        const viewNodeCopy = annotationsLayer; //.clone();
+        //@ts-ignore
+        /*
+        const children = viewNodeCopy.children;
+        console.log("about to go through", children);
+    
+        const rectIds = [];
+        for (const child of children) {
+          console.log("about to check", child, child.name);
+    
+          if (!child.name.includes("Annotations Layer")) {
+            console.log("about to remove", child);
+            rectIds.push(newRect.id);
+            /*const newRect = figma.createFrame();
+            
+            newRect.resize(child.width, child.height);
+            newRect.x = child.x;
+            newRect.y = child.y;
+            //@ts-ignore
+            viewNodeCopy.appendChild(newRect);
+            // add in square image the size of vis
+            child.remove();
+          }
+        }
+        //@ts-ignore
+        console.log("cloned children after", viewNodeCopy, viewNodeCopy.children);
+    */
+        const svgString = viewNodeCopy
+            .exportAsync({ format: "SVG", svgIdAttribute: true })
+            .then((svgCode) => {
+            console.log("about to convert", svgCode);
+            const svg = ab2str(svgCode);
+            console.log("dywootto svg", svg, svgCode);
+            figma.ui.postMessage({
+                viewId: viewId,
+                svgString: svg,
+                vegaPaddingHeight: vegaPaddingHeight,
+                vegaPaddingWidth: vegaPaddingWidth,
+                type: "tester",
+                //idsToRemove: rectIds,
+            });
+            // delete the copied node
+            //viewNodeCopy.remove();
+        });
+    }
+    else if (msg.type === "fetch") {
+        //const selectedNodeId = msg.viewNodeId;
+        console.log("fetching node id", msg.viewNodeId);
+        const annotationsId = msg.annotationNodeId;
+        const viewNodeId = msg.viewNodeId;
+        const viewId = msg.viewId;
+        // uses a fetch by id
+        const annotationsLayer = figma.getNodeById(annotationsId);
+        // find current selection
+        //@ts-ignore    //
+        // grab annnotations layer,
+        // grab plugin data for the width/height padding
+        //const newSelection = [figma.flatten(figma.currentPage.selection)];
+        console.log(annotationsLayer);
+        const nodeIterator = walkTree(annotationsLayer);
+        let nodeStep = nodeIterator.next();
+        const vectorizedNodePayload = [];
+        while (!nodeStep.done) {
+            // skip node types
+            if (nodeStep.value.type === "FRAME" || nodeStep.value.type === "GROUP") {
+                nodeStep = nodeIterator.next();
                 continue;
             }
-            const newNode = sceneNode; // as VectorNode;
-            const rot = newNode.rotation;
-            console.log('stroked', newNode.relativeTransform, newNode.absoluteTransform);
-            const x = newNode.x;
-            const y = newNode.y;
-            const width = newNode.width;
-            const height = newNode.height;
-            console.log('new vals', x, y, width, height);
-            const paths = newNode.vectorPaths.map((vector) => {
-                console.log('vectodata', vector.data);
-                return vector.data;
+            const node = nodeStep.value.clone();
+            console.log("node value", node);
+            // if nodeType is group
+            const vectorizedSceneNodes = vectorize(node);
+            const vectorizedNodes = vectorizedSceneNodes.map((vectorizedNode) => {
+                return { nodeId: vectorizedNode.id, vectorPaths: vectorizedNode.vectorPaths };
             });
-            //const { pathTranslX, pathTranslY, scale } = getTranslationAndScaling(x, y, width, height);
-            console.log(paths);
-            const pathSegs = paths.map((pathString) => {
-                const svgPath = new SVGPath();
-                const fixedPath = pathString.replace(/[\d]+[.][\d]+([e][-][\d]+)/g, '0.0');
-                console.log("imported", fixedPath);
-                svgPath.importString(fixedPath);
-                console.log("imported", svgPath);
-                return svgPath;
+            // determine if any fills need to be inverted
+            let shouldFillBeInverted = vectorizedSceneNodes.some(determineShouldFillBeInverted);
+            vectorizedNodePayload.push({
+                vectorizedNodes: vectorizedNodes,
+                shouldFillBeInverted: shouldFillBeInverted,
             });
-            const pathStrings = pathSegs.map((segCollection) => {
-                const [minx, miny, maxx, maxy, svgWidth, svgHeight] = segCollection.calculateBounds();
-                console.log("scaled", minx, miny, maxx, maxy, svgWidth, svgHeight);
-                const maxDimension = Math.max(svgWidth, svgHeight);
-                console.log(maxDimension);
-                //segCollection.rotate(0, 0, -rot);
-                segCollection.scale(2 / maxDimension);
-                console.log(segCollection);
-                segCollection.center(0, 0);
-                console.log(segCollection);
-                console.log(segCollection);
-                return segCollection.export();
-            });
-            const maxDimension = Math.max(width, height);
-            const pX = 15; // current Vega padding
-            const pY = 5;
-            // rotation throws it off!
-            console.log("x", (1 / 2) * maxDimension, x, pX, 0, rot);
-            console.log("y", (1 / 2) * maxDimension, y, pY, 0);
-            const tX = (1 / 2) * width + x - pX; //+ (maxDimension-height)/2; // total translate
-            const tY = (1 / 2) * height + y - pY; //+ (maxDimension-height)/2; // total translate
-            const vectorScale = maxDimension * maxDimension;
-            //
-            const vals = pathStrings.map((path) => {
-                return `{
+            nodeStep = nodeIterator.next();
+        }
+        figma.ui.postMessage({
+            nodeCollection: vectorizedNodePayload,
+            viewNodeId: viewNodeId,
+            viewId: viewId,
+            type: "modifyPath",
+        });
+    }
+    else if (msg.type === "sendScaled") {
+        const { svgNodeCollection, viewId, viewNodeId } = msg;
+        const viewNode = figma.getNodeById(viewNodeId);
+        console.log("in send scaled", viewId, viewNode, msg);
+        if (viewNode) {
+            const visualizationPaddingWidth = Number(viewNode.getPluginData("vegaPaddingWidth"));
+            const visualizationPaddingHeight = Number(viewNode.getPluginData("vegaPaddingHeight"));
+            const markCollection = [];
+            for (const node of svgNodeCollection) {
+                const marks = node.map((svgNode) => {
+                    const { svgString, nodeId } = svgNode;
+                    const vectorizedNode = figma.getNodeById(nodeId);
+                    // lines and vector
+                    if (vectorizedNode.type !== "VECTOR") {
+                        return;
+                    }
+                    const { width, height, tX, tY, scale } = calculatePlacement(vectorizedNode, visualizationPaddingWidth, visualizationPaddingHeight);
+                    const isVisible = calculateIsVisible(vectorizedNode);
+                    const strokeSpecs = calculateStrokeSpecs(vectorizedNode);
+                    const fillSpecs = calculateFillSpecs(vectorizedNode);
+                    const miscSpecs = calculateMiscSpecs(vectorizedNode);
+                    const propertySpecs = [].concat(strokeSpecs, fillSpecs, miscSpecs);
+                    const translatedSpec = `{
           "type": "symbol",
           "interactive": false,
           "encode": {
             "enter": {
-              "angle":{"value":${0}},
-              "shape": {"value": "${path}"},
-              "size":{"value":${vectorScale}},
-              "fill":{"value":"black"}
+              "shape": {"value": "${svgString}"},
+              "size":{"value":${scale}},
+              ${propertySpecs.join(",")}
             },
             "update": {
               "width":{"value":${width}},
@@ -99,14 +389,211 @@ figma.ui.onmessage = (msg) => {
             }
           }
          }`;
+                    const parsedSpec = JSON.parse(translatedSpec);
+                    if (!isVisible) {
+                        parsedSpec["encode"]["enter"]["opacity"] = { value: 0 };
+                    }
+                    vectorizedNode.remove();
+                    return parsedSpec;
+                });
+                markCollection.push(marks);
+            }
+            const flattenedCollection = markCollection.reduce((acc, val) => acc.concat(val), []);
+            console.log("dywootto mark collection", flattenedCollection);
+            figma.ui.postMessage({
+                annotationSpec: { marks: flattenedCollection },
+                viewId: viewId,
+                type: "finishedMarks",
             });
-            console.log(JSON.stringify(vals[0]).replace(/\\n/g, "").replace(/\\/g, ""));
         }
+    }
+    else if (msg.type === "startUp") {
+        // scan through document to find all nodes with plugin data type matching vega view
+        const currentViews = searchTopLevel(figma.root, (node) => node.getPluginData("type") === "vegaView");
+        const viewsData = [];
+        for (const view of currentViews) {
+            const viewData = extractVegaViewData(view);
+            viewsData.push(viewData);
+        }
+        figma.ui.postMessage({ viewsData: viewsData, type: "startUpViews" });
     }
     // Make sure to close the plugin when you're done. Otherwise the plugin will
     // keep running, which shows the cancel button at the bottom of the screen.
     //figma.closePlugin();
 };
+function determineShouldFillBeInverted(node) {
+    const shouldBeInverted = "strokeAlign" in node && node.strokeAlign !== "CENTER";
+    return shouldBeInverted;
+}
+function extractVegaViewData(node) {
+    const propertiesToExtract = [
+        "viewId",
+        // "viewNodeId", commenting out because it is not a plugin property
+        //"viewName",
+        "visualizationSpec",
+        "annotationSpec",
+        "vegaPaddingWidth",
+        "vegaPaddingHeight",
+        "annotationNodeId",
+        "visualizationNodeId",
+    ];
+    const extractedData = { viewName: node.name, viewNodeId: node.id };
+    for (const property of propertiesToExtract) {
+        const data = node.getPluginData(property);
+        console.log("property", property, "data", data);
+        extractedData[property] = data;
+    }
+    return extractedData;
+}
+function isNotNone(property) {
+    return property !== "NONE";
+}
+function calculateMiscSpecs(node) {
+    const attributes = [];
+    if (node.opacity) {
+        //@ts-ignore wrong typings ?
+        attributes.push(`"opacity": {"value": ${node.opacity}}`);
+    }
+    if (node.blendMode !== "NORMAL" && BLEND_MODE_MAPPINGS[node.blendMode]) {
+        attributes.push(`"blend": {"value": "${BLEND_MODE_MAPPINGS[node.blendMode]}"}`);
+    }
+    return attributes;
+}
+function inAny(paintArr, predicate) {
+    let flag = false;
+    for (const value of paintArr) {
+        if (predicate(value)) {
+            flag = true;
+        }
+    }
+    return flag;
+}
+function calculateIsVisible(node) {
+    let isVisible = false;
+    //@ts-ignore
+    if (inAny(node.fills, (paint) => paint.visible && paint.opacity > 0)) {
+        isVisible = true;
+        //@ts-ignore
+    }
+    else if (inAny(node.strokes, (paint) => paint.visible && paint.opacity > 0)) {
+        isVisible = true;
+    }
+    return isVisible;
+}
+const BLEND_MODE_MAPPINGS = {
+    DARKEN: "darken",
+    MULTIPLY: "multiply",
+    COLOR_BURN: "color-burn",
+    LIGHTEN: "lighten",
+    SCREEN: "screen",
+    COLOR_DODGE: "color-dodge",
+    OVERLAY: "overlay",
+    SOFT_LIGHT: "soft-light",
+    HARD_LIGHT: "hard-light",
+    DIFFERENCE: "difference",
+    EXCLUSION: "exclusion",
+    HUE: "hue",
+    SATURATION: "saturation",
+    COLOR: "color",
+    LUMINOSITY: "luminosity",
+};
+function calculateFillSpecs(node) {
+    const attributes = [];
+    console.log("in fills spec", node.fills, node.opacity, node.visible);
+    if (node.fills && node.fills[0] && node.fills[0].visible) {
+        //@ts-ignore wrong typings ?
+        const color = node.fills[0].color;
+        if (color && color.r !== undefined && color.g !== undefined && color.b !== undefined) {
+            attributes.push(`"fill": {"value": "${rgbPercentToHex(color.r, color.g, color.b)}"}`);
+        }
+        if (node.fills[0].opacity) {
+            attributes.push(`"fillOpacity": {"value": ${node.fills[0].opacity}}`);
+        }
+    }
+    return attributes;
+}
+function calculateStrokeSpecs(node) {
+    console.log("in calc spec", node);
+    const names = Object.getOwnPropertyNames(node);
+    console.log("in calc spec names", names);
+    const attributes = [];
+    if (node.strokes && node.strokes.length > 0) {
+        //@ts-ignore wrong typings ?
+        const color = node.strokes[0].color;
+        if (color && color.r !== undefined && color.g !== undefined && color.b !== undefined) {
+            attributes.push(`"stroke": {"value": "${rgbPercentToHex(color.r, color.g, color.b)}"}`);
+        }
+        if (node.strokes[0].opacity) {
+            attributes.push(`"strokeOpacity": {"value": ${node.strokes[0].opacity}}`);
+        }
+        if (node.strokeCap === "ROUND" || node.strokeCap === "SQUARE") {
+            attributes.push(`"strokeCap": {"value": "round"}`);
+        }
+        if (node.strokeWeight) {
+            attributes.push(`"strokeWidth": {"value": ${node.strokeWeight}}`);
+        }
+        if (node.dashPattern && node.dashPattern.length > 0) {
+            attributes.push(`"strokeDash": {"value": ${node.dashPattern}}`);
+        }
+        if (node.strokeMiterLimit) {
+            attributes.push(`"strokeMiterLimit": {"value": ${node.strokeMiterLimit}}`);
+        }
+    }
+    // return all stroke properties as string
+    return attributes;
+}
+function componentToHex(c) {
+    var hex = c.toString(16);
+    return hex.length == 1 ? "0" + hex : hex;
+}
+function rgbPercentToHex(r, g, b) {
+    return ("#" +
+        componentToHex(Math.round(r * 255)) +
+        componentToHex(Math.round(255 * g)) +
+        componentToHex(Math.round(255 * b)));
+}
+function calculatePlacement(node, paddingX, paddingY) {
+    const width = node.width;
+    const height = node.height;
+    const x = node.x;
+    const y = node.y;
+    const maxDimension = Math.max(width, height);
+    const tX = (1 / 2) * width + x - paddingX; //+ (maxDimension-height)/2; // total translate
+    const tY = (1 / 2) * height + y - paddingY; //+ (maxDimension-height)/2; // total translate
+    const scale = maxDimension * maxDimension;
+    return { width, height, tX, tY, scale };
+}
+function shouldNodeBeOutlineStrokes(node) {
+    console.log("in outline", node);
+    // if the item has an arrow end, outline stroke because arrow stroke cap cannot be applied :(
+    if (node.type === "VECTOR" &&
+        "strokeCap" in node.vectorNetwork.vertices[node.vectorNetwork.vertices.length - 1] &&
+        node.vectorNetwork.vertices[node.vectorNetwork.vertices.length - 1].strokeCap !== "NONE") {
+        return true;
+    }
+    else if ("strokeAlign" in node && node.strokeAlign !== "CENTER") {
+        //node.strokeAlign = "CENTER";
+        // as vega doesn't support inside or center, outline stroke
+        return true;
+    }
+    return false;
+}
+function vectorize(node) {
+    //
+    const nodesToReturn = [];
+    // if node is text, combine all vector paths
+    let vectorNode = figma.flatten([node]);
+    // lines and vector paths with strokes
+    const outlinedNode = vectorNode.outlineStroke();
+    // if no fills, outline stroke
+    nodesToReturn.push(vectorNode);
+    if (outlinedNode && shouldNodeBeOutlineStrokes(vectorNode)) {
+        nodesToReturn.push(outlinedNode);
+        // hide the strokes!
+        vectorNode.strokes = [];
+    }
+    return nodesToReturn;
+}
 function deg2Radian(deg) {
     return deg * (Math.PI / 180);
 }
@@ -129,22 +616,30 @@ function multiplyMatrices(matrixA, matrixB) {
 }
 function multiply(a, b) {
     return [
-        [a[0][0] * b[0][0] + a[0][1] * b[1][0], a[0][0] * b[0][1] + a[0][1] * b[1][1], a[0][0] * b[0][2] + a[0][1] * b[1][2] + a[0][2]],
-        [a[1][0] * b[0][0] + a[1][1] * b[1][0], a[1][0] * b[0][1] + a[1][1] * b[1][1] + 0, a[1][0] * b[0][2] + a[1][1] * b[1][2] + a[1][2]]
+        [
+            a[0][0] * b[0][0] + a[0][1] * b[1][0],
+            a[0][0] * b[0][1] + a[0][1] * b[1][1],
+            a[0][0] * b[0][2] + a[0][1] * b[1][2] + a[0][2],
+        ],
+        [
+            a[1][0] * b[0][0] + a[1][1] * b[1][0],
+            a[1][0] * b[0][1] + a[1][1] * b[1][1] + 0,
+            a[1][0] * b[0][2] + a[1][1] * b[1][2] + a[1][2],
+        ],
     ];
 }
 // Creates a "move" transform.
 function move(x, y) {
     return [
         [1, 0, x],
-        [0, 1, y]
+        [0, 1, y],
     ];
 }
 // Creates a "rotate" transform.
 function rotate(theta) {
     return [
         [Math.cos(theta), Math.sin(theta), 0],
-        [-Math.sin(theta), Math.cos(theta), 0]
+        [-Math.sin(theta), Math.cos(theta), 0],
     ];
 }
 function calculateXYFromNode(node) {
@@ -156,7 +651,10 @@ function calculateXYFromNode(node) {
     let rotationRad = (Math.PI * rotationDeg) / 180;
     let xTransform = x - x * Math.cos(rotationRad) + y * Math.sin(rotationRad);
     let yTransform = y - x * Math.sin(rotationRad) + y * Math.cos(rotationRad);
-    let rotationTransform = [[Math.cos(rotationRad), -Math.sin(rotationRad), xTransform], [Math.sin(rotationRad), Math.cos(rotationRad), yTransform]];
+    let rotationTransform = [
+        [Math.cos(rotationRad), -Math.sin(rotationRad), xTransform],
+        [Math.sin(rotationRad), Math.cos(rotationRad), yTransform],
+    ];
     console.log(JSON.stringify(node.relativeTransform));
     node.relativeTransform = rotationTransform;
     console.log(JSON.stringify(node.relativeTransform));
@@ -179,51 +677,51 @@ function newCalculateRelative(originalNode) {
     //node.rotation = 0;
     console.log(JSON.stringify(node.relativeTransform));
     let transform = JSON.parse(JSON.stringify(node.relativeTransform));
-    // move to 0 
+    // move to 0
     let x = transform[0][2];
     let y = transform[1][2];
     transform[0][2] = 0;
     transform[1][2] = 0;
-    console.log('from 360', JSON.stringify(transform));
+    console.log("from 360", JSON.stringify(transform));
     transform = multiply(rotate(2 * Math.PI - (node.rotation - Math.PI) / 180), transform);
-    console.log('from after rot', JSON.stringify(transform));
+    console.log("from after rot", JSON.stringify(transform));
     transform = multiply(move(x, y), transform);
-    console.log('from after move', JSON.stringify(transform));
+    console.log("from after move", JSON.stringify(transform));
     const difX = node.x;
     const difY = node.y;
-    console.log('calced', difX, difY, x + difX, y + difY);
+    console.log("calced", difX, difY, x + difX, y + difY);
     console.log(JSON.stringify(node.relativeTransform));
     console.log(multiply(rotate(-node.rotation), transform));
-    console.log('from 360', multiply(rotate(-(node.rotation - Math.PI) / 180), node.relativeTransform));
+    console.log("from 360", multiply(rotate(-(node.rotation - Math.PI) / 180), node.relativeTransform));
     // rotate back
     const angleInRadians = deg2Radian(-node.rotation);
     console.log(node.relativeTransform);
     const netransform = multiply(rotate(angleInRadians), node.relativeTransform);
     console.log(netransform);
     /*
-      console.log(node.relativeTransform)
-      let roter = node.rotation;
-      node.rotation = 0;
+    console.log(node.relativeTransform)
+    let roter = node.rotation;
+    node.rotation = 0;
+  
+    console.log('old x',JSON.stringify(node.x),JSON.stringify(node.y),JSON.stringify(node.relativeTransform));
+    node.rotation = roter;
     
-      console.log('old x',JSON.stringify(node.x),JSON.stringify(node.y),JSON.stringify(node.relativeTransform));
-      node.rotation = roter;
-      
-      console.log('new x',x,y,JSON.stringify(node.relativeTransform))
-    
-    
-    
-      const width = node.width;
-      const height = node.height;
-      console.log(x, y, width, height);
-      const rot = (node.rotation * Math.PI) / 180; // in radians
-    
-      // note, to calculate distance from rotation, you must flip the sign  (1/2)H because in cartesian coordinates y DECREASES as you
-      const realX = x + (1 / 2) * width * Math.cos(rot) /*- -1 * (1 / 2) * height * Math.sin(rot)  - (1 / 2) * width;
-        console.log(y,(1 / 2) * width * Math.sin(rot), -1 * (1 / 2) * height * Math.cos(rot), (1 / 2) * height)
-    
-      const realY =
-        y + (1 / 2) * width * Math.sin(rot) /*+ -1 * (1 / 2) * height * Math.cos(rot) +(1 / 2) * height;
-      return [realX, realY];*/
+    console.log('new x',x,y,JSON.stringify(node.relativeTransform))
+  
+  
+  
+    const width = node.width;
+    const height = node.height;
+    console.log(x, y, width, height);
+    const rot = (node.rotation * Math.PI) / 180; // in radians
+  
+    // note, to calculate distance from rotation, you must flip the sign  (1/2)H because in cartesian coordinates y DECREASES as you
+    const realX = x + (1 / 2) * width * Math.cos(rot) /*- -1 * (1 / 2) * height * Math.sin(rot)  - (1 / 2) * width;
+      console.log(y,(1 / 2) * width * Math.sin(rot), -1 * (1 / 2) * height * Math.cos(rot), (1 / 2) * height)
+  
+    const realY =
+      y + (1 / 2) * width * Math.sin(rot) /*+ -1 * (1 / 2) * height * Math.cos(rot) +(1 / 2) * height;
+    return [realX, realY];*/
     const totalLengthOfHypo = Math.sqrt(node.width * node.width + node.height * node.height);
 }
 // Calculate the transformation, i.e. the translation and scaling, required
@@ -388,7 +886,8 @@ function standardizePathDStrFormat(str) {
         .replace(/^ /g, "") // trim any leading space
         .replace(/ $/g, ""); // trim any tailing space
 }
-figma.ui.resize(500, 750);
+figma.ui.resize(750, 700);
+export {};
 // Using relative transformation matrix (gives skewed x value for non-rotated)
 //console.log('relx',rel[0][2] + (1/2)*width*rel[0][0] -(-1)*(1/2)*height*rel[0][0] - (1/2)*width);
 //console.log('rely',rel[1][2]  +(1/2)*width*rel[1][0]- (-1)*(1/2)*height*rel[1][1] - (1/2)*height);

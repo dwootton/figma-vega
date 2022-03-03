@@ -54,7 +54,12 @@ export function convertElement(element, offsets, root, parentRef = null) {
   } else if (element.tagName === "radialGradient" || element.tagName === "linearGradient") {
     const gradientSpec = generateGradientSpec(element, parentRef);
     Object.assign(base, gradientSpec);
-  } else if (element.tagName === "svg") {
+  } else if(element.tagName === "g"){
+    let rootSpec: IRootNode = { type: "group", marks: [] };
+    Object.assign(base, rootSpec);
+
+  }
+  else if (element.tagName === "svg") {
     let rootSpec: IRootNode = { type: "group", marks: [] };
     Object.assign(base, rootSpec);
   } else if (

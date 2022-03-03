@@ -99,10 +99,10 @@ figma.ui.onmessage = (msg) => {
     const svgString = msg.svgToRender;
     const viewName = msg.name;
 
-    // get current page, determine the constraints for 
+    // get current page, determine the constraints for
     const visualizationArtBoard = figma.createFrame();
 
-    visualizationArtBoard.resize(1920,1080);
+    visualizationArtBoard.resize(1920, 1080);
     visualizationArtBoard.layoutAlign = "INHERIT";
 
     const visualization = figma.createNodeFromSvg(svgString);
@@ -144,7 +144,7 @@ figma.ui.onmessage = (msg) => {
 
     //
     const group = figma.group([newAnnotationsLayer, visualization], visualizationArtBoard);
-    
+
     group.name = viewName;
     group.setPluginData("viewName", viewName);
     group.setPluginData("viewId", msg.viewId);
@@ -171,9 +171,17 @@ figma.ui.onmessage = (msg) => {
       annotationNodeId: newAnnotationsLayer.id,
       type: "finishedCreate",
     });
-  }  else if (msg.type === "update"){
-    const {visualizationNodeId,annotationNodeId,viewNodeId,viewId,viewName,vegaSpec,svgToRender} = msg;
-    console.log()
+  } else if (msg.type === "update") {
+    const {
+      visualizationNodeId,
+      annotationNodeId,
+      viewNodeId,
+      viewId,
+      viewName,
+      vegaSpec,
+      svgToRender,
+    } = msg;
+    console.log();
     // delete old vis
     figma.getNodeById(visualizationNodeId).remove();
 
@@ -183,7 +191,7 @@ figma.ui.onmessage = (msg) => {
     visualization.locked = true;
     // place annotations layer on top and make transparent
     let annotationLayer = figma.getNodeById(annotationNodeId);
-    if(!annotationLayer ){
+    if (!annotationLayer) {
       annotationLayer = figma.createFrame();
     }
     const paddingWidthMatches = svgToRender.match(PADDING_WIDTH_REGEX);
@@ -215,13 +223,13 @@ figma.ui.onmessage = (msg) => {
 
     let group = figma.getNodeById(viewNodeId) as SceneNode;
 
-    if(!group){
+    if (!group) {
       group = figma.group([annotationLayer, visualization], figma.currentPage);
     }
 
     //@ts-ignore
     group.appendChild(visualization);
-    
+
     group.name = viewName;
     group.setPluginData("viewName", viewName);
     group.setPluginData("viewId", viewId);
@@ -247,82 +255,112 @@ figma.ui.onmessage = (msg) => {
       annotationNodeId: annotationLayer.id,
       type: "finishedCreate",
     });
-
-    
-
-  } else if (msg.type === "fetchSVG"){
-    // Current level: Get all svg export and then convert 
+  } else if (msg.type === "fetchSVG") {
+    // Current level: Get all svg export and then convert
     //const selectedNodeId = msg.viewNodeId;
     console.log("fetching node id", msg.viewNodeId);
     const annotationsId = msg.annotationNodeId;
     const viewNodeId = msg.viewNodeId;
     const viewId = msg.viewId;
     //@ts-ignore
-    const viewNode : SceneNode = figma.getNodeById(viewNodeId);
-    
-    const vegaPaddingWidth = viewNode.getPluginData("vegaPaddingWidth")
-    const vegaPaddingHeight = viewNode.getPluginData("vegaPaddingHeight")
+    const viewNode: SceneNode = figma.getNodeById(viewNodeId);
+    const vegaPaddingWidth = viewNode.getPluginData("vegaPaddingWidth");
+    const vegaPaddingHeight = viewNode.getPluginData("vegaPaddingHeight");
 
     // uses a fetch by id
     //@ts-ignore
-    const annotationsLayer : SceneNode = figma.getNodeById(annotationsId);
+    const annotationsLayer: SceneNode = figma.getNodeById(annotationsId);
 
     function ab2str(buf) {
-      return Utf8ArrayToStr(buf)
+      return Utf8ArrayToStr(buf);
       //return String.fromCharCode.apply(null, new Uint8Array(buf));
     }
     function Utf8ArrayToStr(array) {
       var out, i, len, c;
       var char2, char3;
-  
+
       out = "";
       len = array.length;
       i = 0;
-      while(i < len) {
-      c = array[i++];
-      switch(c >> 4)
-      { 
-        case 0: case 1: case 2: case 3: case 4: case 5: case 6: case 7:
-          // 0xxxxxxx
-          out += String.fromCharCode(c);
-          break;
-        case 12: case 13:
-          // 110x xxxx   10xx xxxx
-          char2 = array[i++];
-          out += String.fromCharCode(((c & 0x1F) << 6) | (char2 & 0x3F));
-          break;
-        case 14:
-          // 1110 xxxx  10xx xxxx  10xx xxxx
-          char2 = array[i++];
-          char3 = array[i++];
-          out += String.fromCharCode(((c & 0x0F) << 12) |
-                         ((char2 & 0x3F) << 6) |
-                         ((char3 & 0x3F) << 0));
-          break;
+      while (i < len) {
+        c = array[i++];
+        switch (c >> 4) {
+          case 0:
+          case 1:
+          case 2:
+          case 3:
+          case 4:
+          case 5:
+          case 6:
+          case 7:
+            // 0xxxxxxx
+            out += String.fromCharCode(c);
+            break;
+          case 12:
+          case 13:
+            // 110x xxxx   10xx xxxx
+            char2 = array[i++];
+            out += String.fromCharCode(((c & 0x1f) << 6) | (char2 & 0x3f));
+            break;
+          case 14:
+            // 1110 xxxx  10xx xxxx  10xx xxxx
+            char2 = array[i++];
+            char3 = array[i++];
+            out += String.fromCharCode(
+              ((c & 0x0f) << 12) | ((char2 & 0x3f) << 6) | ((char3 & 0x3f) << 0)
+            );
+            break;
+        }
       }
-      }
-  
+
       return out;
-  }
-  
-    // BUG: combine all texts into one path object
-    // go through for each export get promises
-    // for each value, export it as async
-    console.log('about to fetch svg')
-    const svgString = annotationsLayer.exportAsync({ format: "SVG" }).then((svgCode)=>{
-      console.log('about to convert',svgCode)
+    }
 
-      const svg = ab2str(svgCode);
-      console.log('dywootto svg',svg,svgCode);
-      figma.ui.postMessage({
-        viewId:viewId,
-        svgString: svg,
-        vegaPaddingHeight:vegaPaddingHeight,
-        vegaPaddingWidth:vegaPaddingWidth,
-        type: "tester",
+    const viewNodeCopy = annotationsLayer//.clone();
+    //@ts-ignore
+    /*
+    const children = viewNodeCopy.children;
+    console.log("about to go through", children);
+
+    const rectIds = [];
+    for (const child of children) {
+      console.log("about to check", child, child.name);
+
+      if (!child.name.includes("Annotations Layer")) {
+        console.log("about to remove", child);
+        rectIds.push(newRect.id);
+        /*const newRect = figma.createFrame();
+        
+        newRect.resize(child.width, child.height);
+        newRect.x = child.x;
+        newRect.y = child.y;
+        //@ts-ignore
+        viewNodeCopy.appendChild(newRect);
+        // add in square image the size of vis
+        child.remove();
+      }
+    }
+    //@ts-ignore
+    console.log("cloned children after", viewNodeCopy, viewNodeCopy.children);
+*/
+    const svgString = viewNodeCopy
+      .exportAsync({ format: "SVG", svgIdAttribute: true })
+      .then((svgCode) => {
+        console.log("about to convert", svgCode);
+
+        const svg = ab2str(svgCode);
+        console.log("dywootto svg", svg, svgCode);
+        figma.ui.postMessage({
+          viewId: viewId,
+          svgString: svg,
+          vegaPaddingHeight: vegaPaddingHeight,
+          vegaPaddingWidth: vegaPaddingWidth,
+          type: "tester",
+          //idsToRemove: rectIds,
+        });
+        // delete the copied node
+        //viewNodeCopy.remove();
       });
-
-    })
   } else if (msg.type === "fetch") {
     //const selectedNodeId = msg.viewNodeId;
     console.log("fetching node id", msg.viewNodeId);
@@ -350,11 +388,9 @@ figma.ui.onmessage = (msg) => {
         continue;
       }
 
-      const node : SceneNode= nodeStep.value.clone();
+      const node: SceneNode = nodeStep.value.clone();
 
-      
       console.log("node value", node);
-     
 
       // if nodeType is group
       const vectorizedSceneNodes = vectorize(node);
@@ -437,7 +473,7 @@ figma.ui.onmessage = (msg) => {
       }
       const flattenedCollection = markCollection.reduce((acc, val) => acc.concat(val), []);
 
-      console.log('dywootto mark collection',flattenedCollection);
+      console.log("dywootto mark collection", flattenedCollection);
       figma.ui.postMessage({
         annotationSpec: { marks: flattenedCollection },
         viewId: viewId,
@@ -463,9 +499,8 @@ figma.ui.onmessage = (msg) => {
   //figma.closePlugin();
 };
 
-function determineShouldFillBeInverted(node: BaseNode){
-
-  const shouldBeInverted =  "strokeAlign" in node && node.strokeAlign !== "CENTER";
+function determineShouldFillBeInverted(node: BaseNode) {
+  const shouldBeInverted = "strokeAlign" in node && node.strokeAlign !== "CENTER";
   return shouldBeInverted;
 }
 
@@ -550,9 +585,8 @@ function calculateFillSpecs(node: VectorNode) {
   if (node.fills && node.fills[0] && node.fills[0].visible) {
     //@ts-ignore wrong typings ?
     const color = node.fills[0].color;
-    if(color && color.r !== undefined && color.g !== undefined && color.b !== undefined){
+    if (color && color.r !== undefined && color.g !== undefined && color.b !== undefined) {
       attributes.push(`"fill": {"value": "${rgbPercentToHex(color.r, color.g, color.b)}"}`);
-
     }
 
     if (node.fills[0].opacity) {
@@ -571,9 +605,8 @@ function calculateStrokeSpecs(node: VectorNode) {
   if (node.strokes && node.strokes.length > 0) {
     //@ts-ignore wrong typings ?
     const color = node.strokes[0].color;
-    if(color && color.r !== undefined && color.g !== undefined && color.b !== undefined){
+    if (color && color.r !== undefined && color.g !== undefined && color.b !== undefined) {
       attributes.push(`"stroke": {"value": "${rgbPercentToHex(color.r, color.g, color.b)}"}`);
-
     }
 
     if (node.strokes[0].opacity) {
@@ -1014,7 +1047,7 @@ function standardizePathDStrFormat(str) {
     .replace(/ $/g, ""); // trim any tailing space
 }
 
-figma.ui.resize(750, 650);
+figma.ui.resize(750, 700);
 
 // Using relative transformation matrix (gives skewed x value for non-rotated)
 
